@@ -1,0 +1,12 @@
+{
+  "data": {
+    "search": {
+      "pageInfo": { "endCursor": "Y3Vyc29yOjI=", "hasNextPage": false },
+      "nodes": [
+        { "id": "PR_kwDOAAA1" },
+        { "id": "PR_kwDOAAA2" }
+      ]
+    },
+    "rateLimit": { "remaining": 4990, "resetAt": "2026-06-30T10:00:00Z" }
+  }
+}

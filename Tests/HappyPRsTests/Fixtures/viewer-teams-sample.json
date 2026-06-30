@@ -1,0 +1,15 @@
+{
+  "data": {
+    "viewer": { "login": "frodi-karlsson" },
+    "user": {
+      "organizations": {
+        "nodes": [
+          {
+            "login": "naturalcycles",
+            "teams": { "nodes": [ { "slug": "backend" }, { "slug": "platform" } ] }
+          }
+        ]
+      }
+    }
+  }
+}

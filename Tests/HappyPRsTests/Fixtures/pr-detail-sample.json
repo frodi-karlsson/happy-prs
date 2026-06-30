@@ -1,0 +1,33 @@
+{
+  "data": {
+    "nodes": [
+      {
+        "id": "PR_kwDOAAA1",
+        "number": 42,
+        "url": "https://github.com/naturalcycles/NCBackend3/pull/42",
+        "title": "Fix migration deadlock",
+        "isDraft": false,
+        "state": "OPEN",
+        "author": { "login": "alice" },
+        "repository": { "nameWithOwner": "naturalcycles/NCBackend3" },
+        "reviewDecision": "REVIEW_REQUIRED",
+        "reviewRequests": { "nodes": [
+          { "requestedReviewer": { "login": "frodi-karlsson" } }
+        ]},
+        "latestReviews": { "nodes": [] },
+        "commits": { "nodes": [
+          { "commit": { "committedDate": "2026-06-30T09:00:00Z" } }
+        ]},
+        "bodyText": "Please review",
+        "comments": { "nodes": [
+          { "bodyText": "lgtm @frodi-karlsson?" }
+        ]},
+        "reviews": { "nodes": [] },
+        "reviewThreads": { "nodes": [] },
+        "timelineItems": { "nodes": [
+          { "requestedReviewer": { "login": "frodi-karlsson" } }
+        ]}
+      }
+    ]
+  }
+}
