@@ -37,14 +37,23 @@ jobs:
           echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub release
+      - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
-            --notes "Released by tag push." \
-            "${{ steps.build.outputs.tarball }}"
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          TARBALL="${{ steps.build.outputs.tarball }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # Re-run path: release already exists, just replace the
+            # asset in case the build changed.
+            gh release upload "$TAG" "$TARBALL" --clobber
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --notes "Released by tag push." \
+              "$TARBALL"
+          fi
 
       - name: Bump cask in homebrew-tap
         env:
@@ -56,6 +65,11 @@ jobs:
 
           git config --global user.name "happy-prs-release-bot"
           git config --global user.email "happy-prs-release-bot@users.noreply.github.com"
+
+          # Wire git's credential helper to gh so HTTPS pushes pick up
+          # $GH_TOKEN. `gh repo clone` doesn't embed it in the remote
+          # URL, so without this the push prompts for a username.
+          gh auth setup-git
 
           tmpdir="$(mktemp -d)"
           gh repo clone frodi-karlsson/homebrew-tap "$tmpdir"
