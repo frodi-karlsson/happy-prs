@@ -15,8 +15,8 @@ Stale-approval detection: catches PRs where my prior approval was dismissed by n
 ## Requirements
 
 - macOS 14 (Sonoma) or newer
-- [`gh`](https://cli.github.com) installed and authenticated (`gh auth login`)
-- Xcode 16+ (for Swift Testing)
+- [`gh`](https://cli.github.com), authenticated via `gh auth login`. The Homebrew cask installs `gh` automatically; the from-source path requires it to be installed already.
+- Xcode 16+ for the from-source / development paths only (not needed for Homebrew users).
 
 ## Install
 
