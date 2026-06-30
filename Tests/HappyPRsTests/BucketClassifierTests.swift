@@ -219,3 +219,28 @@ func shouldDropClosedPRsEvenWhenMentioned() {
   )
   #expect(BucketClassifier.classify(pr: pr, me: me, myTeams: myTeams).isDropped)
 }
+
+@Test("should not match @login when it's just a prefix of a longer handle")
+func shouldNotMatchMention_whenPrefixOfLongerHandle() {
+  // me = "frodi-karlsson"; the body mentions a different handle that
+  // happens to share my prefix — must NOT register as a mention.
+  let pr = makePR(
+    commentTexts: ["heya @\(me)-doe could you look at this"]
+  )
+  #expect(!BucketClassifier.classify(pr: pr, me: me, myTeams: myTeams).mentions)
+}
+
+@Test("should match @login at end of string and before non-handle characters")
+func shouldMatchMention_atBoundary() {
+  // GitHub handles are [a-zA-Z0-9-]; anything else (space, punctuation,
+  // newline, end-of-string) is a valid mention boundary.
+  let trailingComma = makePR(commentTexts: ["@\(me), please review"])
+  let endOfString = makePR(commentTexts: ["thanks @\(me)"])
+  let newline = makePR(commentTexts: ["ping @\(me)\nthoughts?"])
+  let parens = makePR(commentTexts: ["(@\(me))"])
+
+  #expect(BucketClassifier.classify(pr: trailingComma, me: me, myTeams: myTeams).mentions)
+  #expect(BucketClassifier.classify(pr: endOfString, me: me, myTeams: myTeams).mentions)
+  #expect(BucketClassifier.classify(pr: newline, me: me, myTeams: myTeams).mentions)
+  #expect(BucketClassifier.classify(pr: parens, me: me, myTeams: myTeams).mentions)
+}

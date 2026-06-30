@@ -44,9 +44,11 @@ struct HappyPRsApp: App {
 
   private func runBackgroundLoop() async {
     Notifier.shared.requestAuthorization()
-    let interval = TimeInterval(settings.refreshIntervalSeconds)
     await store.refresh()
     while !Task.isCancelled {
+      // Re-read on each iteration so changes in Settings take effect at
+      // the next refresh tick rather than only after relaunch.
+      let interval = TimeInterval(settings.refreshIntervalSeconds)
       try? await Task.sleep(for: .seconds(interval))
       if Task.isCancelled { break }
       await store.refresh()

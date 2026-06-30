@@ -37,12 +37,11 @@ public enum BucketClassifier {
         && review.submittedAt >= pr.latestCommitDate
     }
 
-    let mentionToken = "@\(me)"
     let mentionsMe =
-      pr.bodyText.contains(mentionToken)
-      || pr.commentTexts.contains(where: { $0.contains(mentionToken) })
-      || pr.reviewSummaryTexts.contains(where: { $0.contains(mentionToken) })
-      || pr.reviewThreadCommentTexts.contains(where: { $0.contains(mentionToken) })
+      hasMention(of: me, in: pr.bodyText)
+      || pr.commentTexts.contains(where: { hasMention(of: me, in: $0) })
+      || pr.reviewSummaryTexts.contains(where: { hasMention(of: me, in: $0) })
+      || pr.reviewThreadCommentTexts.contains(where: { hasMention(of: me, in: $0) })
 
     let needsApproval = needsMyInput && !otherApproved
     let wantsApproval = needsMyInput && otherApproved
@@ -53,5 +52,31 @@ public enum BucketClassifier {
       mentions: mentionsMe,
       staleFlag: staleReview
     )
+  }
+
+  /// Returns true when `text` contains `@login` as a full mention —
+  /// i.e. not as a prefix of a longer GitHub handle. GitHub handles
+  /// are `[a-zA-Z0-9-]`, so a bare substring match for `@frodi`
+  /// would incorrectly match `@frodi-doe`. We require the character
+  /// after the match to either be absent (end of string) or not a
+  /// handle character.
+  private static func hasMention(of login: String, in text: String) -> Bool {
+    let token = "@\(login)"
+    var searchRange = text.startIndex..<text.endIndex
+    while let found = text.range(of: token, range: searchRange) {
+      if found.upperBound == text.endIndex
+        || !text[found.upperBound].isGitHubHandleCharacter
+      {
+        return true
+      }
+      searchRange = found.upperBound..<text.endIndex
+    }
+    return false
+  }
+}
+
+extension Character {
+  fileprivate var isGitHubHandleCharacter: Bool {
+    isASCII && (isLetter || isNumber || self == "-")
   }
 }
