@@ -18,7 +18,7 @@ struct HappyPRsApp: App {
                 }
             }
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
     }
 
     private static func makeStore() -> PRStore {

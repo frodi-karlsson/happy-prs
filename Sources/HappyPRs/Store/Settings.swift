@@ -36,4 +36,16 @@ public final class Settings {
         get { defaults.bool(forKey: "hasInitialized") }
         set { defaults.set(newValue, forKey: "hasInitialized") }
     }
+
+    public var archives: [ArchiveEntry] {
+        get {
+            guard let data = defaults.data(forKey: "archives") else { return [] }
+            return (try? JSONDecoder().decode([ArchiveEntry].self, from: data)) ?? []
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: "archives")
+            }
+        }
+    }
 }
