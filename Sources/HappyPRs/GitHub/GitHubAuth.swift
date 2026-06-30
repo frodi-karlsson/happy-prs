@@ -60,6 +60,16 @@ public final class GitHubAuth {
         // Use /usr/bin/env so we don't hard-code gh's path.
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         proc.arguments = [command] + args
+
+        // GUI apps on macOS don't inherit the shell PATH — when launched via
+        // LaunchAgent or `open`, PATH is just /usr/bin:/bin:/usr/sbin:/sbin.
+        // Augment with common Homebrew locations so `gh` is findable.
+        var env = ProcessInfo.processInfo.environment
+        let extraPaths = ["/opt/homebrew/bin", "/usr/local/bin"]
+        let existingPath = env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
+        env["PATH"] = (extraPaths + [existingPath]).joined(separator: ":")
+        proc.environment = env
+
         let out = Pipe(); let err = Pipe()
         proc.standardOutput = out
         proc.standardError = err
@@ -73,6 +83,10 @@ public final class GitHubAuth {
         proc.waitUntilExit()
         let outData = out.fileHandleForReading.readDataToEndOfFile()
         let errData = err.fileHandleForReading.readDataToEndOfFile()
+        // Exit code 127 from /usr/bin/env means "command not found".
+        if proc.terminationStatus == 127 {
+            throw ShellError.binaryNotFound
+        }
         return ShellResult(
             exitCode: proc.terminationStatus,
             stdout: String(data: outData, encoding: .utf8) ?? "",

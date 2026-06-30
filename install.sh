@@ -25,12 +25,14 @@ echo "==> Writing LaunchAgent at $LAUNCH_AGENT"
 mkdir -p "$LAUNCH_AGENT_DIR"
 sed "s#__BINARY_PATH__#$BINARY_PATH#" "Resources/LaunchAgent.plist.template" > "$LAUNCH_AGENT"
 
-echo "==> Loading LaunchAgent"
+echo "==> Stopping any running instance"
+# `launchctl bootout` only kills processes managed by launchd; an instance
+# launched via `open` or `swift run` is orphaned and won't be touched.
+pkill -x "$APP_NAME" 2>/dev/null || true
 launchctl bootout "gui/$(id -u)" "$LAUNCH_AGENT" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENT"
 
-echo "==> Launching app"
-open "$APP_DIR"
+echo "==> Loading LaunchAgent (RunAtLoad starts the app)"
+launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENT"
 
 echo
 echo "Done. Happy PRs is installed at $APP_DIR and will start on every login."
