@@ -44,8 +44,13 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     // MARK: UNUserNotificationCenterDelegate
+    //
+    // The delegate protocol's methods are `nonisolated` — they can be called
+    // on any thread by the system framework. We can't make them main-actor
+    // isolated even though the rest of `Notifier` is. NSWorkspace.open is
+    // safe to call off the main actor.
 
-    public func userNotificationCenter(
+    public nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
@@ -57,7 +62,7 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         completionHandler()
     }
 
-    public func userNotificationCenter(
+    public nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void

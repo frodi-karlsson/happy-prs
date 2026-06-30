@@ -32,7 +32,7 @@ struct HappyPRsApp: App {
     }
 
     private func runBackgroundLoop() async {
-        await Notifier.shared.requestAuthorization()
+        Notifier.shared.requestAuthorization()
         let interval = TimeInterval(Settings().refreshIntervalSeconds)
         await store.refresh()
         while !Task.isCancelled {
