@@ -56,6 +56,7 @@ public final class PRStore {
             let resolution = try await teamResolver.resolve()
             let raw = try await fetcher.fetch(teams: resolution.teams)
             let seen = Set(settings.lastSeenPRIDs)
+            let isFirstRun = !settings.hasInitialized
             let classified = raw.compactMap { pr -> ClassifiedPR? in
                 let bucket = BucketClassifier.classify(
                     pr: pr, me: resolution.viewerLogin, myTeams: resolution.teams
@@ -63,8 +64,15 @@ public final class PRStore {
                 guard !bucket.isDropped else { return nil }
                 return ClassifiedPR(pr: pr, bucket: bucket, isNew: !seen.contains(pr.id))
             }
+            if !isFirstRun {
+                let newOnes = classified.filter { $0.isNew }
+                if !newOnes.isEmpty {
+                    await Notifier.shared.notify(for: newOnes)
+                }
+            }
             prs = classified
             settings.lastSeenPRIDs = classified.map { $0.id }
+            settings.hasInitialized = true
             lastRefreshAt = Date()
             refreshState = .idle
         } catch GitHubClient.ClientError.httpError(let status, _) where status == 403 {

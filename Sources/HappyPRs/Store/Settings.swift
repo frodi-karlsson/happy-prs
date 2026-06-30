@@ -28,4 +28,12 @@ public final class Settings {
         get { defaults.stringArray(forKey: "lastSeenPRIDs") ?? [] }
         set { defaults.set(newValue, forKey: "lastSeenPRIDs") }
     }
+
+    /// True once the first successful refresh has stored a baseline seen-set.
+    /// Used to suppress notifications on the very first refresh after install,
+    /// where every PR would otherwise look "new".
+    public var hasInitialized: Bool {
+        get { defaults.bool(forKey: "hasInitialized") }
+        set { defaults.set(newValue, forKey: "hasInitialized") }
+    }
 }
