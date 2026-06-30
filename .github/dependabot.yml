@@ -1,0 +1,10 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Dependabot bumps the SHA pin and updates the trailing `# v...` comment.
+    commit-message:
+      prefix: chore
+      include: scope
