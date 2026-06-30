@@ -1,16 +1,6 @@
 import Foundation
 
-public final class GitHubClient {
-  public struct Response: Sendable {
-    public let data: Data
-    public let rateLimitRemaining: Int?
-    public let rateLimitResetAt: Date?
-  }
-  public enum ClientError: Error, Equatable {
-    case httpError(status: Int, body: String)
-    case malformedResponse
-  }
-
+public final class GitHubClient: GitHubClientProtocol, @unchecked Sendable {
   private let endpoint = URL(string: "https://api.github.com/graphql")!
   private let session: URLSession
   private let tokenProvider: @Sendable () throws -> String
@@ -26,7 +16,7 @@ public final class GitHubClient {
   public func graphQL(
     query: String,
     variables: [String: Any]
-  ) async throws -> Response {
+  ) async throws -> GitHubGraphQLResponse {
     var request = URLRequest(url: endpoint)
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -39,17 +29,20 @@ public final class GitHubClient {
 
     let (data, response) = try await session.data(for: request)
     guard let http = response as? HTTPURLResponse else {
-      throw ClientError.malformedResponse
+      throw GitHubClientError.malformedResponse
     }
     if !(200..<300).contains(http.statusCode) {
       let bodyString = String(data: data, encoding: .utf8) ?? ""
-      throw ClientError.httpError(status: http.statusCode, body: bodyString)
+      throw GitHubClientError.httpError(status: http.statusCode, body: bodyString)
     }
-    let remaining = (http.value(forHTTPHeaderField: "X-RateLimit-Remaining"))
+    let remaining =
+      (http.value(forHTTPHeaderField: "X-RateLimit-Remaining"))
       .flatMap(Int.init)
-    let reset = (http.value(forHTTPHeaderField: "X-RateLimit-Reset"))
+    let reset =
+      (http.value(forHTTPHeaderField: "X-RateLimit-Reset"))
       .flatMap(Double.init)
       .map { Date(timeIntervalSince1970: $0) }
-    return Response(data: data, rateLimitRemaining: remaining, rateLimitResetAt: reset)
+    return GitHubGraphQLResponse(
+      data: data, rateLimitRemaining: remaining, rateLimitResetAt: reset)
   }
 }

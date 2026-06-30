@@ -3,7 +3,7 @@ import Foundation
 import UserNotifications
 
 @MainActor
-public final class Notifier: NSObject, UNUserNotificationCenterDelegate {
+public final class Notifier: NSObject, NotifierProtocol, UNUserNotificationCenterDelegate {
   public static let shared = Notifier()
 
   private override init() {
@@ -38,7 +38,7 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     FileHandle.standardError.write(Data("Notifier: \(message)\n".utf8))
   }
 
-  public func notify(for items: [PRStore.ClassifiedPR]) {
+  public func notify(for items: [ClassifiedPR]) {
     let center = UNUserNotificationCenter.current()
     for item in items {
       let content = UNMutableNotificationContent()

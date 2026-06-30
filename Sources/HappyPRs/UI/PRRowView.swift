@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct PRRowView: View {
-  let item: PRStore.ClassifiedPR
+  let item: ClassifiedPR
   let bucketLabel: String  // "needs" | "wants" | "mentions"
   let store: PRStore
 

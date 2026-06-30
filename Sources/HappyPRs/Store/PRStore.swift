@@ -3,40 +3,32 @@ import Observation
 
 @Observable
 public final class PRStore {
-  public struct ClassifiedPR: Identifiable, Equatable {
-    public let pr: PullRequest
-    public let bucket: BucketAssignment
-    public let isNew: Bool
-    public var id: String { pr.id }
-  }
-
-  public enum RefreshState: Equatable {
-    case idle
-    case refreshing
-    case error(String)
-    case rateLimited(resetAt: Date)
-    case notAuthenticated
-    case ghNotInstalled
-  }
-
   public private(set) var refreshState: RefreshState = .idle
   public private(set) var lastRefreshAt: Date? = nil
   public private(set) var prs: [ClassifiedPR] = []
   public private(set) var archived: [ClassifiedPR] = []
 
-  private let auth: GitHubAuth
-  private let fetcher: PRFetcher
-  private let teamResolver: TeamResolver
-  private let settings: Settings
+  private let auth: GitHubAuthProtocol
+  private let fetcher: PRFetcherProtocol
+  private let teamResolver: TeamResolverProtocol
+  private let settings: SettingsProtocol
+  private let notifier: NotifierProtocol
+  private let now: @Sendable () -> Date
 
   public init(
-    auth: GitHubAuth, fetcher: PRFetcher,
-    teamResolver: TeamResolver, settings: Settings
+    auth: GitHubAuthProtocol,
+    fetcher: PRFetcherProtocol,
+    teamResolver: TeamResolverProtocol,
+    settings: SettingsProtocol,
+    notifier: NotifierProtocol,
+    now: @escaping @Sendable () -> Date = { Date() }
   ) {
     self.auth = auth
     self.fetcher = fetcher
     self.teamResolver = teamResolver
     self.settings = settings
+    self.notifier = notifier
+    self.now = now
   }
 
   public func refresh() async {
@@ -44,10 +36,10 @@ public final class PRStore {
     do {
       // Validate auth up-front so we can show a useful error.
       _ = try auth.token()
-    } catch GitHubAuth.AuthError.notInstalled {
+    } catch GitHubAuthError.notInstalled {
       refreshState = .ghNotInstalled
       return
-    } catch GitHubAuth.AuthError.notAuthenticated {
+    } catch GitHubAuthError.notAuthenticated {
       refreshState = .notAuthenticated
       return
     } catch {
@@ -57,7 +49,7 @@ public final class PRStore {
 
     do {
       let resolution = try await teamResolver.resolve()
-      let raw = try await fetcher.fetch(teams: resolution.teams)
+      let raw = try await fetcher.fetch(teams: resolution.teams, detailBatchSize: 50)
       let seen = Set(settings.lastSeenPRIDs)
       let isFirstRun = !settings.hasInitialized
       let classified = raw.compactMap { pr -> ClassifiedPR? in
@@ -74,7 +66,7 @@ public final class PRStore {
       if !isFirstRun {
         let newOnes = active.filter { $0.isNew }
         if !newOnes.isEmpty {
-          await Notifier.shared.notify(for: newOnes)
+          await notifier.notify(for: newOnes)
         }
       }
       prs = active
@@ -84,10 +76,10 @@ public final class PRStore {
       // notification for an already-known PR.
       settings.lastSeenPRIDs = classified.map { $0.id }
       settings.hasInitialized = true
-      lastRefreshAt = Date()
+      lastRefreshAt = now()
       refreshState = .idle
-    } catch GitHubClient.ClientError.httpError(let status, _) where status == 403 {
-      refreshState = .rateLimited(resetAt: Date().addingTimeInterval(900))
+    } catch GitHubClientError.httpError(let status, _) where status == 403 {
+      refreshState = .rateLimited(resetAt: now().addingTimeInterval(900))
     } catch {
       refreshState = .error("\(error)")
     }
@@ -104,7 +96,7 @@ public final class PRStore {
       ArchiveEntry(
         prID: id,
         mode: mode,
-        archivedAt: Date(),
+        archivedAt: now(),
         baselineCommitDate: item.pr.latestCommitDate
       ))
     settings.archives = entries
@@ -125,14 +117,14 @@ public final class PRStore {
   private func partitionByArchive(
     classified: [ClassifiedPR]
   ) -> (active: [ClassifiedPR], archived: [ClassifiedPR]) {
-    let now = Date()
+    let nowDate = now()
     var entries = settings.archives
     var active: [ClassifiedPR] = []
     var archivedNow: [ClassifiedPR] = []
 
     for item in classified {
       if let entry = entries.first(where: { $0.prID == item.id }),
-        entry.isActive(now: now, currentCommitDate: item.pr.latestCommitDate)
+        entry.isActive(now: nowDate, currentCommitDate: item.pr.latestCommitDate)
       {
         archivedNow.append(item)
       } else {

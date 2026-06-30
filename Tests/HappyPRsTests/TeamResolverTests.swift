@@ -3,34 +3,96 @@ import Testing
 
 @testable import HappyPRs
 
-@Suite(.serialized) struct TeamResolverTests {
-  @Test("should fetch teams and cache them, returning cached value within TTL")
-  func shouldFetchAndCacheTeams() async throws {
-    MockURLProtocol.acquire(); defer { MockURLProtocol.requestHandler = nil; MockURLProtocol.release() }
-    let calls = Counter()
-    MockURLProtocol.requestHandler = { req in
-      calls.value += 1
-      let url = Bundle.module.url(
-        forResource: "viewer-teams-sample",
-        withExtension: "json", subdirectory: "Fixtures")!
-      let resp = HTTPURLResponse(
-        url: req.url!, statusCode: 200,
-        httpVersion: nil, headerFields: nil)!
-      return (resp, try Data(contentsOf: url))
-    }
-    let client = GitHubClient(
-      session: MockURLProtocol.makeSession(),
-      tokenProvider: { "t" })
-    let defaults = UserDefaults(suiteName: "TeamResolverTests-\(UUID().uuidString)")!
-    let resolver = TeamResolver(client: client, defaults: defaults, ttl: 60)
+/// The TeamResolver caches in UserDefaults. To isolate one test from
+/// another (and from the real preferences), each test gets a fresh suite.
+private func freshDefaults() -> UserDefaults {
+  UserDefaults(suiteName: "TeamResolverTests-\(UUID().uuidString)")!
+}
 
-    let first = try await resolver.resolve()
-    #expect(first.viewerLogin == "frodi-karlsson")
-    #expect(first.teams.count == 2)
-    #expect(calls.value == 2)  // first resolve: viewer query + viewerAndTeams query = 2 calls
+private let viewerLoginResponse = """
+  {"data":{"viewer":{"login":"frodi-karlsson"}}}
+  """
 
-    let second = try await resolver.resolve()
-    #expect(second.teams == first.teams)
-    #expect(calls.value == 2, "should not refetch within TTL")
-  }
+private let viewerAndTeamsResponse = """
+  {"data":{
+    "viewer":{"login":"frodi-karlsson"},
+    "user":{"organizations":{"nodes":[
+      {"login":"naturalcycles","teams":{"nodes":[
+        {"slug":"tech"},{"slug":"web"}
+      ]}}
+    ]}}
+  }}
+  """
+
+@Test("should fetch viewer login then teams and return resolution")
+func shouldFetchViewerThenTeams() async throws {
+  let client = FakeGitHubClient()
+  client.responses = [
+    .success(jsonResponse(viewerLoginResponse)),
+    .success(jsonResponse(viewerAndTeamsResponse)),
+  ]
+  let resolver = TeamResolver(client: client, defaults: freshDefaults(), ttl: 3600)
+
+  let resolution = try await resolver.resolve()
+
+  #expect(resolution.viewerLogin == "frodi-karlsson")
+  #expect(
+    resolution.teams == [
+      TeamRef(org: "naturalcycles", slug: "tech"),
+      TeamRef(org: "naturalcycles", slug: "web"),
+    ])
+  #expect(client.calls.count == 2)
+}
+
+@Test("should serve subsequent calls from cache while within TTL")
+func shouldServeFromCacheWithinTTL() async throws {
+  let client = FakeGitHubClient()
+  client.responses = [
+    .success(jsonResponse(viewerLoginResponse)),
+    .success(jsonResponse(viewerAndTeamsResponse)),
+  ]
+  let resolver = TeamResolver(client: client, defaults: freshDefaults(), ttl: 3600)
+
+  _ = try await resolver.resolve()
+  _ = try await resolver.resolve()
+
+  // Second resolve hits the cache — no additional GraphQL calls.
+  #expect(client.calls.count == 2)
+}
+
+@Test("should refetch after invalidate")
+func shouldRefetchAfterInvalidate() async throws {
+  let client = FakeGitHubClient()
+  client.responses = [
+    .success(jsonResponse(viewerLoginResponse)),
+    .success(jsonResponse(viewerAndTeamsResponse)),
+    .success(jsonResponse(viewerLoginResponse)),
+    .success(jsonResponse(viewerAndTeamsResponse)),
+  ]
+  let resolver = TeamResolver(client: client, defaults: freshDefaults(), ttl: 3600)
+
+  _ = try await resolver.resolve()
+  resolver.invalidate()
+  _ = try await resolver.resolve()
+
+  #expect(client.calls.count == 4)
+}
+
+@Test("should refetch when cached entry is older than TTL")
+func shouldRefetchWhenCacheStale() async throws {
+  let client = FakeGitHubClient()
+  client.responses = [
+    .success(jsonResponse(viewerLoginResponse)),
+    .success(jsonResponse(viewerAndTeamsResponse)),
+    .success(jsonResponse(viewerLoginResponse)),
+    .success(jsonResponse(viewerAndTeamsResponse)),
+  ]
+  // Tiny TTL: by the time we sleep 50ms, the cache is stale.
+  let resolver = TeamResolver(client: client, defaults: freshDefaults(), ttl: 0.01)
+
+  _ = try await resolver.resolve()
+  try await Task.sleep(for: .milliseconds(50))
+  _ = try await resolver.resolve()
+
+  #expect(client.calls.count == 4)
 }

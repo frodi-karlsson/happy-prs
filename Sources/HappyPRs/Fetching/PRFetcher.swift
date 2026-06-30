@@ -1,9 +1,9 @@
 import Foundation
 
-public final class PRFetcher {
-  private let client: GitHubClient
+public final class PRFetcher: PRFetcherProtocol, @unchecked Sendable {
+  private let client: GitHubClientProtocol
 
-  public init(client: GitHubClient) {
+  public init(client: GitHubClientProtocol) {
     self.client = client
   }
 
@@ -40,8 +40,8 @@ public final class PRFetcher {
   }
 }
 
-private extension Array {
-  func chunks(ofCount n: Int) -> [ArraySlice<Element>] {
+extension Array {
+  fileprivate func chunks(ofCount n: Int) -> [ArraySlice<Element>] {
     guard n > 0, !isEmpty else { return isEmpty ? [] : [self[...]] }
     var result: [ArraySlice<Element>] = []
     var i = 0

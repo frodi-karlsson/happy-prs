@@ -30,7 +30,7 @@ func shouldThrowNotInstalled_whenGhMissing() {
   let auth = GitHubAuth(runner: { _, _ in
     throw GitHubAuth.ShellError.binaryNotFound
   })
-  #expect(throws: GitHubAuth.AuthError.notInstalled) { try auth.token() }
+  #expect(throws: GitHubAuthError.notInstalled) { try auth.token() }
 }
 
 @Test("should throw notAuthenticated when gh exits non-zero")
@@ -38,7 +38,7 @@ func shouldThrowNotAuthenticated_whenGhExitsNonZero() {
   let auth = GitHubAuth(runner: { _, _ in
     ShellResult(exitCode: 1, stdout: "", stderr: "not authenticated")
   })
-  #expect(throws: GitHubAuth.AuthError.notAuthenticated) { try auth.token() }
+  #expect(throws: GitHubAuthError.notAuthenticated) { try auth.token() }
 }
 
 @Test("should throw notAuthenticated when gh exits 0 but stdout is empty")
@@ -46,5 +46,5 @@ func shouldThrowNotAuthenticated_whenStdoutEmpty() {
   let auth = GitHubAuth(runner: { _, _ in
     ShellResult(exitCode: 0, stdout: "\n", stderr: "")
   })
-  #expect(throws: GitHubAuth.AuthError.notAuthenticated) { try auth.token() }
+  #expect(throws: GitHubAuthError.notAuthenticated) { try auth.token() }
 }

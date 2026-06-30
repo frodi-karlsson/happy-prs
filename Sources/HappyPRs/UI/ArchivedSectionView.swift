@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ArchivedSectionView: View {
-  let items: [PRStore.ClassifiedPR]
+  let items: [ClassifiedPR]
   @Binding var isExpanded: Bool
   let store: PRStore
 

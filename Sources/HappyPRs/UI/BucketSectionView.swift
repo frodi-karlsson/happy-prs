@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BucketSectionView: View {
   let title: String
-  let items: [PRStore.ClassifiedPR]
+  let items: [ClassifiedPR]
   let bucketLabel: String
   let store: PRStore
 

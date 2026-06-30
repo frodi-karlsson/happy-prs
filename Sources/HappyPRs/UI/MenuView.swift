@@ -42,9 +42,9 @@ struct MenuView: View {
     .frame(minHeight: 200, maxHeight: 640)
   }
 
-  private var needs: [PRStore.ClassifiedPR] { store.prs.filter { $0.bucket.needsApproval } }
-  private var wants: [PRStore.ClassifiedPR] { store.prs.filter { $0.bucket.wantsApproval } }
-  private var mentions: [PRStore.ClassifiedPR] { store.prs.filter { $0.bucket.mentions } }
+  private var needs: [ClassifiedPR] { store.prs.filter { $0.bucket.needsApproval } }
+  private var wants: [ClassifiedPR] { store.prs.filter { $0.bucket.wantsApproval } }
+  private var mentions: [ClassifiedPR] { store.prs.filter { $0.bucket.mentions } }
 
   private var footer: some View {
     HStack(spacing: 8) {

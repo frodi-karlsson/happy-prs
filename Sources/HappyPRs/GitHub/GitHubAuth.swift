@@ -6,11 +6,7 @@ public struct ShellResult: Sendable, Equatable {
   public let stderr: String
 }
 
-public final class GitHubAuth {
-  public enum AuthError: Error, Equatable {
-    case notInstalled
-    case notAuthenticated
-  }
+public final class GitHubAuth: GitHubAuthProtocol, @unchecked Sendable {
   public enum ShellError: Error, Equatable {
     case binaryNotFound
   }
@@ -35,11 +31,11 @@ public final class GitHubAuth {
     do {
       result = try runner("gh", ["auth", "token"])
     } catch ShellError.binaryNotFound {
-      throw AuthError.notInstalled
+      throw GitHubAuthError.notInstalled
     }
-    guard result.exitCode == 0 else { throw AuthError.notAuthenticated }
+    guard result.exitCode == 0 else { throw GitHubAuthError.notAuthenticated }
     let trimmed = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { throw AuthError.notAuthenticated }
+    guard !trimmed.isEmpty else { throw GitHubAuthError.notAuthenticated }
 
     cacheLock.lock()
     cachedToken = trimmed
@@ -70,7 +66,8 @@ public final class GitHubAuth {
     env["PATH"] = (extraPaths + [existingPath]).joined(separator: ":")
     proc.environment = env
 
-    let out = Pipe(); let err = Pipe()
+    let out = Pipe()
+    let err = Pipe()
     proc.standardOutput = out
     proc.standardError = err
     do {

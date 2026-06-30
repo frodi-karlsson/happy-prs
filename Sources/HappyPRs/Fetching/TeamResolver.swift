@@ -1,31 +1,29 @@
 import Foundation
 
-public final class TeamResolver {
+public final class TeamResolver: TeamResolverProtocol, @unchecked Sendable {
   private struct CachedTeams: Codable {
     let viewerLogin: String
     let teams: [TeamRef]
     let fetchedAt: Date
   }
 
-  public struct Resolution: Sendable, Equatable {
-    public let viewerLogin: String
-    public let teams: [TeamRef]
-  }
-
-  private let client: GitHubClient
+  private let client: GitHubClientProtocol
   private let defaults: UserDefaults
   private let ttl: TimeInterval
   private let cacheKey = "TeamResolver.cache.v1"
 
-  public init(client: GitHubClient, defaults: UserDefaults = .standard, ttl: TimeInterval = 24 * 3600) {
+  public init(
+    client: GitHubClientProtocol, defaults: UserDefaults = .standard,
+    ttl: TimeInterval = 24 * 3600
+  ) {
     self.client = client
     self.defaults = defaults
     self.ttl = ttl
   }
 
-  public func resolve() async throws -> Resolution {
+  public func resolve() async throws -> TeamResolution {
     if let cached = readCache(), Date().timeIntervalSince(cached.fetchedAt) < ttl {
-      return Resolution(viewerLogin: cached.viewerLogin, teams: cached.teams)
+      return TeamResolution(viewerLogin: cached.viewerLogin, teams: cached.teams)
     }
     // Resolve viewer login first (needs no variable), then teams.
     let viewerData = try await client.graphQL(
@@ -46,7 +44,7 @@ public final class TeamResolver {
       CachedTeams(
         viewerLogin: decoded.viewerLogin,
         teams: decoded.teams, fetchedAt: Date()))
-    return Resolution(viewerLogin: decoded.viewerLogin, teams: decoded.teams)
+    return TeamResolution(viewerLogin: decoded.viewerLogin, teams: decoded.teams)
   }
 
   public func invalidate() {

@@ -21,15 +21,18 @@ struct HappyPRsApp: App {
     .menuBarExtraStyle(.window)
   }
 
+  @MainActor
   private static func makeStore() -> PRStore {
     let auth = GitHubAuth()
     let client = GitHubClient(tokenProvider: { try auth.token() })
     let fetcher = PRFetcher(client: client)
     let teamResolver = TeamResolver(client: client)
     let settings = Settings()
+    let notifier = Notifier.shared
     return PRStore(
       auth: auth, fetcher: fetcher,
-      teamResolver: teamResolver, settings: settings)
+      teamResolver: teamResolver, settings: settings,
+      notifier: notifier)
   }
 
   private func runBackgroundLoop() async {

@@ -58,7 +58,7 @@ struct GitHubClientTests {
       session: MockURLProtocol.makeSession(),
       tokenProvider: { "test-token" }
     )
-    await #expect(throws: GitHubClient.ClientError.self) {
+    await #expect(throws: GitHubClientError.self) {
       _ = try await client.graphQL(query: "x", variables: [:])
     }
   }

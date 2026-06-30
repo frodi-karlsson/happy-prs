@@ -1,6 +1,6 @@
 import Foundation
 
-public final class Settings {
+public final class Settings: SettingsProtocol, @unchecked Sendable {
   private let defaults: UserDefaults
 
   public init(defaults: UserDefaults = .standard) {
