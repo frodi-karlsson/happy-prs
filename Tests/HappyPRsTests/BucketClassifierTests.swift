@@ -206,3 +206,12 @@ func shouldDetectMentionInReviewThread() {
     )
     #expect(BucketClassifier.classify(pr: pr, me: me, myTeams: myTeams).mentions)
 }
+
+@Test("should drop closed PRs even when mentioned")
+func shouldDropClosedPRsEvenWhenMentioned() {
+    let pr = makePR(
+        state: .closed,
+        commentTexts: ["hey @\(me) check this out"]
+    )
+    #expect(BucketClassifier.classify(pr: pr, me: me, myTeams: myTeams).isDropped)
+}

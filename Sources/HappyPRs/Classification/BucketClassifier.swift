@@ -51,7 +51,7 @@ public enum BucketClassifier {
             needsApproval: needsApproval,
             wantsApproval: wantsApproval,
             mentions: mentionsMe,
-            staleFlag: needsMyInput && staleReview
+            staleFlag: staleReview
         )
     }
 }
