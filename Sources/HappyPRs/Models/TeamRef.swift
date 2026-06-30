@@ -6,3 +6,5 @@ public struct TeamRef: Sendable, Equatable, Hashable {
         self.org = org; self.slug = slug
     }
 }
+
+extension TeamRef: Codable {}
