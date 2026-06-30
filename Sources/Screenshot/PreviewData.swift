@@ -55,7 +55,7 @@ enum PreviewData {
       // Bucket 1: needs approval, never reviewed, currently requested.
       pr(
         id: "PR_1", repo: "acme/api", number: 4821,
-        title: "fix(migrations): resolve deadlock on backfill",
+        title: "fix: pagination off-by-one on the last page",
         author: "alice",
         latestCommitDate: now.addingTimeInterval(-2 * 3600),
         currentlyRequested: [me], everRequested: [me]
@@ -63,7 +63,7 @@ enum PreviewData {
       // Bucket 1, stale: I approved long ago, new commits since.
       pr(
         id: "PR_2", repo: "acme/mobile", number: 1207,
-        title: "feat(signup): bigger tap targets on wizard cards",
+        title: "feat: arrow-key navigation for the items list",
         author: "bob",
         latestCommitDate: now.addingTimeInterval(-3 * 3600),
         currentlyRequested: [], everRequested: [me],
@@ -76,7 +76,7 @@ enum PreviewData {
       // Bucket 2: wants approval, somebody else already approved current HEAD.
       pr(
         id: "PR_3", repo: "acme/web", number: 4688,
-        title: "feat(deps): react-router@8 and other stories",
+        title: "chore(deps): bump test runner to v3",
         author: "carol",
         latestCommitDate: now.addingTimeInterval(-30 * 60),
         currentlyRequested: [me], everRequested: [me],
@@ -89,7 +89,7 @@ enum PreviewData {
       // Bucket 3 only: @-mention with no review involvement.
       pr(
         id: "PR_4", repo: "acme/payments", number: 4400,
-        title: "fix: throw directly for non-payment intent errors",
+        title: "fix: retry transient network errors with backoff",
         author: "eve",
         latestCommitDate: now.addingTimeInterval(-20 * 60),
         currentlyRequested: [], everRequested: [],
@@ -98,7 +98,7 @@ enum PreviewData {
       // Archived: was requested, user said "let someone else handle it".
       pr(
         id: "PR_5", repo: "acme/ui-kit", number: 200,
-        title: "chore(tokens): align dark-mode color tokens with figma",
+        title: "refactor: extract list rendering into a reusable view",
         author: "frank",
         latestCommitDate: now.addingTimeInterval(-5 * 86_400),
         currentlyRequested: [me], everRequested: [me]
