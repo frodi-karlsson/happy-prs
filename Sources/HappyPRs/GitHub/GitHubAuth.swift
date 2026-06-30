@@ -1,0 +1,82 @@
+import Foundation
+
+public struct ShellResult: Sendable, Equatable {
+    public let exitCode: Int32
+    public let stdout: String
+    public let stderr: String
+}
+
+public final class GitHubAuth {
+    public enum AuthError: Error, Equatable {
+        case notInstalled
+        case notAuthenticated
+    }
+    public enum ShellError: Error, Equatable {
+        case binaryNotFound
+    }
+
+    public typealias Runner = @Sendable (_ command: String, _ args: [String]) throws -> ShellResult
+
+    private let runner: Runner
+
+    public init(runner: @escaping Runner = GitHubAuth.defaultRunner) {
+        self.runner = runner
+    }
+
+    private var cachedToken: String?
+    private let cacheLock = NSLock()
+
+    public func token() throws -> String {
+        cacheLock.lock()
+        if let cachedToken { cacheLock.unlock(); return cachedToken }
+        cacheLock.unlock()
+
+        let result: ShellResult
+        do {
+            result = try runner("gh", ["auth", "token"])
+        } catch ShellError.binaryNotFound {
+            throw AuthError.notInstalled
+        }
+        guard result.exitCode == 0 else { throw AuthError.notAuthenticated }
+        let trimmed = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw AuthError.notAuthenticated }
+
+        cacheLock.lock()
+        cachedToken = trimmed
+        cacheLock.unlock()
+        return trimmed
+    }
+
+    /// Clears the in-memory token cache. Call after a 401 so the next `token()`
+    /// re-invokes `gh auth token`.
+    public func invalidate() {
+        cacheLock.lock()
+        cachedToken = nil
+        cacheLock.unlock()
+    }
+
+    public static let defaultRunner: Runner = { command, args in
+        let proc = Process()
+        // Use /usr/bin/env so we don't hard-code gh's path.
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        proc.arguments = [command] + args
+        let out = Pipe(); let err = Pipe()
+        proc.standardOutput = out
+        proc.standardError = err
+        do {
+            try proc.run()
+        } catch CocoaError.fileNoSuchFile {
+            throw ShellError.binaryNotFound
+        } catch let nsError as NSError where nsError.code == NSFileNoSuchFileError {
+            throw ShellError.binaryNotFound
+        }
+        proc.waitUntilExit()
+        let outData = out.fileHandleForReading.readDataToEndOfFile()
+        let errData = err.fileHandleForReading.readDataToEndOfFile()
+        return ShellResult(
+            exitCode: proc.terminationStatus,
+            stdout: String(data: outData, encoding: .utf8) ?? "",
+            stderr: String(data: errData, encoding: .utf8) ?? ""
+        )
+    }
+}
