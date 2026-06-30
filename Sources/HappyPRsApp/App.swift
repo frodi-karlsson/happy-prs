@@ -35,9 +35,11 @@ struct HappyPRsApp: App {
     }
     .menuBarExtraStyle(.window)
 
-    Settings {
+    Window("Settings", id: "settings") {
       SettingsView(settings: settings)
     }
+    .windowResizability(.contentSize)
+    .defaultPosition(.center)
   }
 
   private func runBackgroundLoop() async {
