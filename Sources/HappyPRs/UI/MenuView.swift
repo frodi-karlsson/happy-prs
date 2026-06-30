@@ -3,6 +3,7 @@ import SwiftUI
 public struct MenuView: View {
   let store: PRStore
   @State private var showArchived = false
+  @Environment(\.openSettings) private var openSettings
 
   public init(store: PRStore) {
     self.store = store
@@ -56,6 +57,8 @@ public struct MenuView: View {
       Spacer()
       Button("Refresh") { Task { await store.refresh() } }
         .keyboardShortcut("r")
+      Button("Settings…") { openSettings() }
+        .keyboardShortcut(",")
       Button("Quit") { NSApplication.shared.terminate(nil) }
         .keyboardShortcut("q")
     }

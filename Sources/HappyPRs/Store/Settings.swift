@@ -1,52 +1,61 @@
 import Foundation
+import Observation
 
+@Observable
 public final class Settings: SettingsProtocol, @unchecked Sendable {
-  private let defaults: UserDefaults
-
-  public init(defaults: UserDefaults = .standard) {
-    self.defaults = defaults
-  }
-
-  private static let allowedIntervals: [Int] = [30, 60, 120, 300, 900]
+  @ObservationIgnored private let defaults: UserDefaults
+  @ObservationIgnored private static let allowedIntervals: [Int] = [30, 60, 120, 300, 900]
 
   public var refreshIntervalSeconds: Int {
-    get { defaults.object(forKey: "refreshIntervalSeconds") as? Int ?? 60 }
-    set {
+    didSet {
       let clamped =
         Self.allowedIntervals.min(by: {
-          abs($0 - newValue) < abs($1 - newValue)
+          abs($0 - refreshIntervalSeconds) < abs($1 - refreshIntervalSeconds)
         }) ?? 60
-      defaults.set(clamped, forKey: "refreshIntervalSeconds")
+      if clamped != refreshIntervalSeconds {
+        // Recursion guard: only re-assign if it changes the value.
+        refreshIntervalSeconds = clamped
+        return
+      }
+      defaults.set(refreshIntervalSeconds, forKey: "refreshIntervalSeconds")
     }
   }
 
   public var hiddenRepos: [String] {
-    get { defaults.stringArray(forKey: "hiddenRepos") ?? [] }
-    set { defaults.set(newValue, forKey: "hiddenRepos") }
+    didSet { defaults.set(hiddenRepos, forKey: "hiddenRepos") }
   }
 
   public var lastSeenPRIDs: [String] {
-    get { defaults.stringArray(forKey: "lastSeenPRIDs") ?? [] }
-    set { defaults.set(newValue, forKey: "lastSeenPRIDs") }
+    didSet { defaults.set(lastSeenPRIDs, forKey: "lastSeenPRIDs") }
   }
 
   /// True once the first successful refresh has stored a baseline seen-set.
   /// Used to suppress notifications on the very first refresh after install,
   /// where every PR would otherwise look "new".
   public var hasInitialized: Bool {
-    get { defaults.bool(forKey: "hasInitialized") }
-    set { defaults.set(newValue, forKey: "hasInitialized") }
+    didSet { defaults.set(hasInitialized, forKey: "hasInitialized") }
   }
 
   public var archives: [ArchiveEntry] {
-    get {
-      guard let data = defaults.data(forKey: "archives") else { return [] }
-      return (try? JSONDecoder().decode([ArchiveEntry].self, from: data)) ?? []
-    }
-    set {
-      if let data = try? JSONEncoder().encode(newValue) {
+    didSet {
+      if let data = try? JSONEncoder().encode(archives) {
         defaults.set(data, forKey: "archives")
       }
+    }
+  }
+
+  public init(defaults: UserDefaults = .standard) {
+    self.defaults = defaults
+    self.refreshIntervalSeconds = defaults.object(forKey: "refreshIntervalSeconds") as? Int ?? 60
+    self.hiddenRepos = defaults.stringArray(forKey: "hiddenRepos") ?? []
+    self.lastSeenPRIDs = defaults.stringArray(forKey: "lastSeenPRIDs") ?? []
+    self.hasInitialized = defaults.bool(forKey: "hasInitialized")
+    if let data = defaults.data(forKey: "archives"),
+      let entries = try? JSONDecoder().decode([ArchiveEntry].self, from: data)
+    {
+      self.archives = entries
+    } else {
+      self.archives = []
     }
   }
 }

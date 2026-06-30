@@ -2,7 +2,7 @@
 
 macOS menubar app showing GitHub PRs that need my input.
 
-![Happy PRs menubar popover](docs/screenshots/loaded.png)
+![Happy PRs menubar popover](screenshots/loaded.png)
 
 ## Buckets
 
@@ -38,7 +38,7 @@ swift test       # run the test suite
 
 `dev.sh` runs the binary directly via `swift run`. You'll see a transient dock icon during development — that's expected (it goes away in the bundled `.app`).
 
-The pre-commit hook (`.githooks/pre-commit`) regenerates the README screenshot whenever a commit touches `Sources/`, and re-stages the PNG only if its content changed. Bypass with `git commit --no-verify` if you ever need to.
+The pre-commit hook (`.githooks/pre-commit`) regenerates the README screenshots whenever a commit touches `Sources/`, and re-stages any PNG whose content changed. Bypass with `git commit --no-verify` if you ever need to.
 
 ## Uninstall
 
@@ -48,16 +48,8 @@ The pre-commit hook (`.githooks/pre-commit`) regenerates the README screenshot w
 
 Removes the LaunchAgent, the app bundle, and stops the running process. UserDefaults settings remain unless you `defaults delete com.frodikarlsson.happyprs`.
 
-## Tweaking settings
+## Settings
 
-V1 has no Settings UI. Override via `defaults`:
+Open with `⌘,` from the menubar popover (or click the **Settings…** button in the footer). Choose how often the app polls GitHub, and hide repos whose PRs you never want to see.
 
-```sh
-# Refresh interval (allowed: 30, 60, 120, 300, 900):
-defaults write com.frodikarlsson.happyprs refreshIntervalSeconds -int 30
-
-# Hide a specific repo:
-defaults write com.frodikarlsson.happyprs hiddenRepos -array "owner/noisy-repo"
-```
-
-Restart the app for changes to take effect.
+![Settings window](screenshots/settings.png)

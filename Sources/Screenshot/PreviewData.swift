@@ -41,8 +41,8 @@ final class PreviewSettings: SettingsProtocol, @unchecked Sendable {
 // MARK: - Mock PR fixtures.
 
 enum PreviewData {
-  static let viewerLogin = "frodi-karlsson"
-  static let team = TeamRef(org: "naturalcycles", slug: "tech")
+  static let viewerLogin = "octocat"
+  static let team = TeamRef(org: "acme", slug: "core")
 
   /// Builds a PRStore populated by running `refresh()` against in-memory
   /// fakes, with a realistic mix of PRs across all three buckets plus one
@@ -54,7 +54,7 @@ enum PreviewData {
     let prs: [PullRequest] = [
       // Bucket 1: needs approval, never reviewed, currently requested.
       pr(
-        id: "PR_1", repo: "NaturalCycles/NCBackend3", number: 4821,
+        id: "PR_1", repo: "acme/api", number: 4821,
         title: "fix(migrations): resolve deadlock on backfill",
         author: "alice",
         latestCommitDate: now.addingTimeInterval(-2 * 3600),
@@ -62,7 +62,7 @@ enum PreviewData {
       ),
       // Bucket 1, stale: I approved long ago, new commits since.
       pr(
-        id: "PR_2", repo: "NaturalCycles/NCApp3", number: 1207,
+        id: "PR_2", repo: "acme/mobile", number: 1207,
         title: "feat(signup): bigger tap targets on wizard cards",
         author: "bob",
         latestCommitDate: now.addingTimeInterval(-3 * 3600),
@@ -75,7 +75,7 @@ enum PreviewData {
       ),
       // Bucket 2: wants approval, somebody else already approved current HEAD.
       pr(
-        id: "PR_3", repo: "NaturalCycles/NCWeb", number: 4688,
+        id: "PR_3", repo: "acme/web", number: 4688,
         title: "feat(deps): react-router@8 and other stories",
         author: "carol",
         latestCommitDate: now.addingTimeInterval(-30 * 60),
@@ -88,8 +88,8 @@ enum PreviewData {
       ),
       // Bucket 3 only: @-mention with no review involvement.
       pr(
-        id: "PR_4", repo: "NaturalCycles/WebSignup", number: 4400,
-        title: "fix(payments): throw directly for non-payment intent errors",
+        id: "PR_4", repo: "acme/payments", number: 4400,
+        title: "fix: throw directly for non-payment intent errors",
         author: "eve",
         latestCommitDate: now.addingTimeInterval(-20 * 60),
         currentlyRequested: [], everRequested: [],
@@ -97,7 +97,7 @@ enum PreviewData {
       ),
       // Archived: was requested, user said "let someone else handle it".
       pr(
-        id: "PR_5", repo: "NaturalCycles/NCUiKit", number: 200,
+        id: "PR_5", repo: "acme/ui-kit", number: 200,
         title: "chore(tokens): align dark-mode color tokens with figma",
         author: "frank",
         latestCommitDate: now.addingTimeInterval(-5 * 86_400),
@@ -127,6 +127,20 @@ enum PreviewData {
     )
     await store.refresh()
     return store
+  }
+
+  /// Builds a Settings populated with a couple hidden-repo examples so
+  /// the screenshot of the Settings window has interesting content
+  /// rather than the "No repos hidden." empty state.
+  @MainActor
+  static func settingsScreenshotData() -> Settings {
+    // Isolate to a UUID suite so the screenshot tool doesn't clobber
+    // the real preferences on the machine running it.
+    let defaults = UserDefaults(suiteName: "ScreenshotPreview-\(UUID().uuidString)")!
+    let settings = Settings(defaults: defaults)
+    settings.refreshIntervalSeconds = 60
+    settings.hiddenRepos = ["acme/legacy-dashboard", "acme/intern-experiment"]
+    return settings
   }
 
   private static func pr(

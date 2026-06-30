@@ -13,13 +13,14 @@ fi
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-screenshot="docs/screenshots/loaded.png"
-echo "pre-commit: regenerating $screenshot"
+echo "pre-commit: regenerating screenshots/*.png"
 swift run --quiet Screenshot >/dev/null
 
-# Only stage the PNG if its content actually changed. Identical re-renders
+# Only stage PNGs whose content actually changed. Identical re-renders
 # are a no-op — keeps the commit lean and history small.
-if ! git diff --quiet -- "$screenshot" 2>/dev/null; then
-  git add "$screenshot"
-  echo "pre-commit: staged updated $screenshot"
+changed=$(git diff --name-only -- 'screenshots/*.png' 2>/dev/null || true)
+if [ -n "$changed" ]; then
+  echo "$changed" | xargs git add
+  echo "pre-commit: staged updated screenshot(s):"
+  echo "$changed" | sed 's/^/  /'
 fi

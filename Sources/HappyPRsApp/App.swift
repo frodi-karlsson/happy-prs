@@ -3,8 +3,22 @@ import SwiftUI
 
 @main
 struct HappyPRsApp: App {
-  @State private var store: PRStore = HappyPRsApp.makeStore()
-  @State private var refreshTask: Task<Void, Never>? = nil
+  @State private var settings: HappyPRs.Settings
+  @State private var store: PRStore
+
+  init() {
+    let settings = HappyPRs.Settings()
+    let auth = GitHubAuth()
+    let client = GitHubClient(tokenProvider: { try auth.token() })
+    let fetcher = PRFetcher(client: client)
+    let teamResolver = TeamResolver(client: client)
+    let store = PRStore(
+      auth: auth, fetcher: fetcher,
+      teamResolver: teamResolver, settings: settings,
+      notifier: Notifier.shared)
+    _settings = State(initialValue: settings)
+    _store = State(initialValue: store)
+  }
 
   var body: some Scene {
     MenuBarExtra {
@@ -20,25 +34,15 @@ struct HappyPRsApp: App {
       }
     }
     .menuBarExtraStyle(.window)
-  }
 
-  @MainActor
-  private static func makeStore() -> PRStore {
-    let auth = GitHubAuth()
-    let client = GitHubClient(tokenProvider: { try auth.token() })
-    let fetcher = PRFetcher(client: client)
-    let teamResolver = TeamResolver(client: client)
-    let settings = Settings()
-    let notifier = Notifier.shared
-    return PRStore(
-      auth: auth, fetcher: fetcher,
-      teamResolver: teamResolver, settings: settings,
-      notifier: notifier)
+    Settings {
+      SettingsView(settings: settings)
+    }
   }
 
   private func runBackgroundLoop() async {
     Notifier.shared.requestAuthorization()
-    let interval = TimeInterval(Settings().refreshIntervalSeconds)
+    let interval = TimeInterval(settings.refreshIntervalSeconds)
     await store.refresh()
     while !Task.isCancelled {
       try? await Task.sleep(for: .seconds(interval))
