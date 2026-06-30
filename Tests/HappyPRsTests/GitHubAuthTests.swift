@@ -12,17 +12,20 @@ func shouldReturnToken_whenGhSucceeds() throws {
 
 @Test("should cache token across calls and re-fetch after invalidate")
 func shouldCacheToken_andRefetchAfterInvalidate() throws {
-  var calls = 0
+  // Wrap mutation in the shared Counter reference type — the Runner
+  // closure is `@Sendable` so capturing a plain `var` is a Swift 6
+  // strict-concurrency violation.
+  let calls = Counter()
   let auth = GitHubAuth(runner: { _, _ in
-    calls += 1
-    return ShellResult(exitCode: 0, stdout: "gho_\(calls)\n", stderr: "")
+    calls.value += 1
+    return ShellResult(exitCode: 0, stdout: "gho_\(calls.value)\n", stderr: "")
   })
   #expect(try auth.token() == "gho_1")
   #expect(try auth.token() == "gho_1")
-  #expect(calls == 1)
+  #expect(calls.value == 1)
   auth.invalidate()
   #expect(try auth.token() == "gho_2")
-  #expect(calls == 2)
+  #expect(calls.value == 2)
 }
 
 @Test("should throw notInstalled when gh binary is missing")
