@@ -42,8 +42,11 @@ This builds in release mode, bundles the binary into `~/Applications/Happy PRs.a
 ```sh
 ./setup-hooks.sh # one-time: activates .githooks/ for this clone
 ./dev.sh         # swift run with the installed copy stopped
-swift test       # run the test suite
+./check.sh       # run every CI check locally in one pass
+swift test       # run just the test suite
 ```
+
+`check.sh` runs swift-format lint, `actionlint` (workflow YAML linting — `brew install actionlint` once), debug + release builds, and the full test suite. Same toolchain and strictness as CI.
 
 `dev.sh` runs the binary directly via `swift run`. You'll see a transient dock icon during development — that's expected (it goes away in the bundled `.app`).
 
