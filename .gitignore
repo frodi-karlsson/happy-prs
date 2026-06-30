@@ -1,4 +1,5 @@
-docs/
+docs/*
+!docs/screenshots/
 .build/
 .swiftpm/
 .DS_Store

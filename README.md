@@ -2,6 +2,8 @@
 
 macOS menubar app showing GitHub PRs that need my input.
 
+![Happy PRs menubar popover](docs/screenshots/loaded.png)
+
 ## Buckets
 
 - **🔴 Needs your approval** — I (or my team) am a reviewer, and no one has approved the current HEAD yet.
