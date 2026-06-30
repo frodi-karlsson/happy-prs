@@ -3,7 +3,6 @@ import SwiftUI
 public struct MenuView: View {
   let store: PRStore
   @State private var showArchived = false
-  @Environment(\.openSettings) private var openSettings
 
   public init(store: PRStore) {
     self.store = store
@@ -57,12 +56,22 @@ public struct MenuView: View {
       Spacer()
       Button("Refresh") { Task { await store.refresh() } }
         .keyboardShortcut("r")
-      Button("Settings…") { openSettings() }
+      Button("Settings…", action: showSettings)
         .keyboardShortcut(",")
       Button("Quit") { NSApplication.shared.terminate(nil) }
         .keyboardShortcut("q")
     }
     .padding(10)
+  }
+
+  /// Opens the Settings scene from a menubar (LSUIElement) app. The
+  /// stock `openSettings()` env action doesn't activate the app, so
+  /// the window appears behind everything or never gets focus. We
+  /// activate the app first, then send the selector SwiftUI's
+  /// Settings scene listens for — this works reliably in agent apps.
+  private func showSettings() {
+    NSApp.activate(ignoringOtherApps: true)
+    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
   }
 
   @ViewBuilder
