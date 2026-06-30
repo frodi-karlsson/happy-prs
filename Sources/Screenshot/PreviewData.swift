@@ -31,10 +31,11 @@ final class PreviewNotifier: NotifierProtocol, @unchecked Sendable {
 final class PreviewSettings: SettingsProtocol, @unchecked Sendable {
   var refreshIntervalSeconds: Int = 60
   var hiddenRepos: [String] = []
-  var lastSeenPRIDs: [String] = []
+  var lastSeenSnapshots: [String: BucketAssignment] = [:]
   /// Pre-set so the real first-run gate doesn't apply (we don't want
   /// notification side-effects in preview anyway).
   var hasInitialized: Bool = true
+  var hasMigrated: Bool = true
   var archives: [ArchiveEntry] = []
 }
 
@@ -106,9 +107,19 @@ enum PreviewData {
     ]
 
     let settings = PreviewSettings()
-    // Pre-seed seen IDs for PR_1 and PR_3 so PR_2 and PR_4 render the "new"
-    // dot — gives the screenshot a more varied row treatment.
-    settings.lastSeenPRIDs = ["PR_1", "PR_3", "PR_5"]
+    // Pre-seed snapshots for PR_1, PR_3, PR_5 (with their current bucket
+    // assignments) so PR_2 and PR_4 render the "new" dot — gives the
+    // screenshot a more varied row treatment. PR_5 is also archived;
+    // including it here means auto-unarchive (which would otherwise
+    // reset its snapshot) doesn't fire on the refresh.
+    settings.lastSeenSnapshots = [
+      "PR_1": BucketAssignment(
+        needsApproval: true, wantsApproval: false, mentions: false, staleFlag: false),
+      "PR_3": BucketAssignment(
+        needsApproval: false, wantsApproval: true, mentions: false, staleFlag: false),
+      "PR_5": BucketAssignment(
+        needsApproval: true, wantsApproval: false, mentions: false, staleFlag: false),
+    ]
     settings.archives = [
       ArchiveEntry(
         prID: "PR_5", mode: .forever,

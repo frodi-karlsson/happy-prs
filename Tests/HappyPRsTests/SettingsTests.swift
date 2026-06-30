@@ -20,11 +20,23 @@ func shouldClampRefreshInterval() {
   #expect(s.refreshIntervalSeconds == 900)
 }
 
-@Test("should persist and read lastSeenPRIDs")
-func shouldPersistLastSeenIDs() {
+@Test("should persist and read lastSeenSnapshots")
+func shouldPersistLastSeenSnapshots() {
   let defaults = UserDefaults(suiteName: "SettingsTests-\(UUID().uuidString)")!
   let s = Settings(defaults: defaults)
-  s.lastSeenPRIDs = ["PR_a", "PR_b"]
+  s.lastSeenSnapshots = [
+    "PR_a": BucketAssignment(
+      needsApproval: true, wantsApproval: false, mentions: false, staleFlag: false),
+    "PR_b": BucketAssignment(
+      needsApproval: false, wantsApproval: false, mentions: true, staleFlag: false),
+  ]
   let s2 = Settings(defaults: defaults)
-  #expect(s2.lastSeenPRIDs == ["PR_a", "PR_b"])
+  #expect(s2.lastSeenSnapshots == s.lastSeenSnapshots)
+}
+
+@Test("should default hasMigrated to false on a fresh defaults suite")
+func shouldDefaultHasMigratedFalse() {
+  let defaults = UserDefaults(suiteName: "SettingsTests-\(UUID().uuidString)")!
+  let s = Settings(defaults: defaults)
+  #expect(s.hasMigrated == false)
 }

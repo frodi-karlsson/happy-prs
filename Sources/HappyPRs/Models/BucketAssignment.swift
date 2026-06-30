@@ -1,4 +1,4 @@
-public struct BucketAssignment: Sendable, Equatable {
+public struct BucketAssignment: Sendable, Equatable, Codable {
   public let needsApproval: Bool
   public let wantsApproval: Bool
   public let mentions: Bool

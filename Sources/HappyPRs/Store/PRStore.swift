@@ -50,32 +50,63 @@ public final class PRStore {
     do {
       let resolution = try await teamResolver.resolve()
       let raw = try await fetcher.fetch(teams: resolution.teams, detailBatchSize: 50)
-      let seen = Set(settings.lastSeenPRIDs)
+
       let isFirstRun = !settings.hasInitialized
-      let classified = raw.compactMap { pr -> ClassifiedPR? in
+      // One-shot gate: existing users (hasInitialized=true) on their first
+      // refresh under the snapshot model get a silent refresh that just
+      // seeds the baseline.
+      let migrating = settings.hasInitialized && !settings.hasMigrated
+
+      let prevSnapshots = settings.lastSeenSnapshots
+
+      // Pre-classify so we know the bucket for each PR before deciding
+      // isNew + notify transitions.
+      let preClassified: [(PullRequest, BucketAssignment)] = raw.compactMap {
+        pr -> (PullRequest, BucketAssignment)? in
         let bucket = BucketClassifier.classify(
           pr: pr, me: resolution.viewerLogin, myTeams: resolution.teams
         )
         guard !bucket.isDropped else { return nil }
-        return ClassifiedPR(pr: pr, bucket: bucket, isNew: !seen.contains(pr.id))
+        return (pr, bucket)
+      }
+
+      // During migration, seed effectivePrev with the current state so
+      // neither isNew dots nor notifications fire this once.
+      let effectivePrev: [String: BucketAssignment] =
+        migrating
+        ? Dictionary(uniqueKeysWithValues: preClassified.map { ($0.0.id, $0.1) })
+        : prevSnapshots
+
+      let classified = preClassified.map { pr, bucket in
+        ClassifiedPR(pr: pr, bucket: bucket, isNew: effectivePrev[pr.id] == nil)
       }
 
       // Partition into active vs archived based on the archive store.
       let (active, archivedNow) = partitionByArchive(classified: classified)
 
-      if !isFirstRun {
-        let newOnes = active.filter { $0.isNew }
-        if !newOnes.isEmpty {
-          await notifier.notify(for: newOnes)
+      if !isFirstRun && !migrating {
+        let notifiable = active.filter { item in
+          Self.shouldNotify(prev: effectivePrev[item.id], current: item.bucket)
+        }
+        if !notifiable.isEmpty {
+          await notifier.notify(for: notifiable)
         }
       }
+
+      // Persist snapshots for ACTIVE PRs only. Archived/dropped PRs lose
+      // their snapshot, so when they later re-emerge into an active
+      // bucket they're treated as "first time seen" again — which is
+      // the right behaviour for both `isNew` dots and notifications.
+      var newSnapshots: [String: BucketAssignment] = [:]
+      for item in active {
+        newSnapshots[item.id] = item.bucket
+      }
+
       prs = active
       archived = archivedNow
-      // lastSeenPRIDs should cover everything we've shown — active and
-      // archived — so re-surfacing on auto-unarchive doesn't fire a
-      // notification for an already-known PR.
-      settings.lastSeenPRIDs = classified.map { $0.id }
+      settings.lastSeenSnapshots = newSnapshots
       settings.hasInitialized = true
+      settings.hasMigrated = true
       lastRefreshAt = now()
       refreshState = .idle
     } catch GitHubClientError.httpError(let status, _) where status == 403 {
@@ -83,6 +114,23 @@ public final class PRStore {
     } catch {
       refreshState = .error("\(error)")
     }
+  }
+
+  /// Returns true when the bucket state for a PR has meaningfully
+  /// changed in a direction the user wants a banner for — newly in an
+  /// actionable bucket, or newly stale.
+  private static func shouldNotify(
+    prev: BucketAssignment?, current: BucketAssignment
+  ) -> Bool {
+    guard let prev else {
+      // First time we've seen this PR in an active bucket.
+      return current.needsApproval || current.wantsApproval || current.mentions
+    }
+    if current.needsApproval && !prev.needsApproval { return true }
+    if current.wantsApproval && !prev.wantsApproval { return true }
+    if current.mentions && !prev.mentions { return true }
+    if current.staleFlag && !prev.staleFlag { return true }
+    return false
   }
 
   /// Archive a PR currently shown in `prs`. Moves it into `archived` and

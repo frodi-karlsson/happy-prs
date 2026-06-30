@@ -25,8 +25,12 @@ public final class Settings: SettingsProtocol, @unchecked Sendable {
     didSet { defaults.set(hiddenRepos, forKey: "hiddenRepos") }
   }
 
-  public var lastSeenPRIDs: [String] {
-    didSet { defaults.set(lastSeenPRIDs, forKey: "lastSeenPRIDs") }
+  public var lastSeenSnapshots: [String: BucketAssignment] {
+    didSet {
+      if let data = try? JSONEncoder().encode(lastSeenSnapshots) {
+        defaults.set(data, forKey: "lastSeenSnapshots")
+      }
+    }
   }
 
   /// True once the first successful refresh has stored a baseline seen-set.
@@ -34,6 +38,13 @@ public final class Settings: SettingsProtocol, @unchecked Sendable {
   /// where every PR would otherwise look "new".
   public var hasInitialized: Bool {
     didSet { defaults.set(hasInitialized, forKey: "hasInitialized") }
+  }
+
+  /// True after the first refresh under the snapshot-based notification
+  /// model. Combined with `hasInitialized` to suppress the one-time flood
+  /// when an upgrading user goes from ID-only seen-sets to bucket snapshots.
+  public var hasMigrated: Bool {
+    didSet { defaults.set(hasMigrated, forKey: "hasMigrated") }
   }
 
   public var archives: [ArchiveEntry] {
@@ -48,8 +59,15 @@ public final class Settings: SettingsProtocol, @unchecked Sendable {
     self.defaults = defaults
     self.refreshIntervalSeconds = defaults.object(forKey: "refreshIntervalSeconds") as? Int ?? 60
     self.hiddenRepos = defaults.stringArray(forKey: "hiddenRepos") ?? []
-    self.lastSeenPRIDs = defaults.stringArray(forKey: "lastSeenPRIDs") ?? []
     self.hasInitialized = defaults.bool(forKey: "hasInitialized")
+    self.hasMigrated = defaults.bool(forKey: "hasMigrated")
+    if let data = defaults.data(forKey: "lastSeenSnapshots"),
+      let decoded = try? JSONDecoder().decode([String: BucketAssignment].self, from: data)
+    {
+      self.lastSeenSnapshots = decoded
+    } else {
+      self.lastSeenSnapshots = [:]
+    }
     if let data = defaults.data(forKey: "archives"),
       let entries = try? JSONDecoder().decode([ArchiveEntry].self, from: data)
     {

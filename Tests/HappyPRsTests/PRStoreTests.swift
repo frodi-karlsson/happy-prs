@@ -133,8 +133,8 @@ func shouldPassResolvedTeams_toFetcher() async {
   #expect(bag.fetcher.lastTeams == [myTeam])
 }
 
-@Test("should record all classified IDs in lastSeenPRIDs (active + archived)")
-func shouldRecordAllClassifiedIDs_inLastSeen() async {
+@Test("should snapshot active PRs only; archived PRs lose their snapshot")
+func shouldSnapshotActiveOnly_notArchived() async {
   let bag = makeStore()
   let active = makePR(id: "PR_active", number: 1)
   let archivedPR = makePR(id: "PR_archived", number: 2)
@@ -148,7 +148,7 @@ func shouldRecordAllClassifiedIDs_inLastSeen() async {
 
   await bag.store.refresh()
 
-  #expect(Set(bag.settings.lastSeenPRIDs) == Set(["PR_active", "PR_archived"]))
+  #expect(Set(bag.settings.lastSeenSnapshots.keys) == Set(["PR_active"]))
 }
 
 // MARK: - Error mapping below the auth gate
@@ -196,11 +196,15 @@ func shouldDropDrafts() async {
   #expect(bag.store.prs.map(\.id) == ["PR_keep"])
 }
 
-@Test("should mark a PR as new when its ID isn't in lastSeenPRIDs")
-func shouldMarkAsNew_whenNotInSeenSet() async {
+@Test("should mark a PR as new when there's no prior snapshot for its ID")
+func shouldMarkAsNew_whenNoPriorSnapshot() async {
   let bag = makeStore()
-  bag.settings.lastSeenPRIDs = ["PR_old"]
   bag.settings.hasInitialized = true
+  bag.settings.hasMigrated = true
+  bag.settings.lastSeenSnapshots = [
+    "PR_old": BucketAssignment(
+      needsApproval: true, wantsApproval: false, mentions: false, staleFlag: false)
+  ]
   let known = makePR(id: "PR_old", number: 1)
   let fresh = makePR(id: "PR_new", number: 2)
   bag.fetcher.result = .success([known, fresh])
@@ -218,36 +222,24 @@ func shouldMarkAsNew_whenNotInSeenSet() async {
 func shouldNotNotify_onFirstRun() async {
   let bag = makeStore()
   bag.settings.hasInitialized = false
+  bag.settings.hasMigrated = false
   bag.fetcher.result = .success([makePR(id: "PR_1"), makePR(id: "PR_2")])
 
   await bag.store.refresh()
 
   #expect(bag.notifier.notifiedBatches.isEmpty)
   #expect(bag.settings.hasInitialized == true)
+  #expect(bag.settings.hasMigrated == true)
 }
 
-@Test("should notify for new PRs on subsequent refreshes")
-func shouldNotify_forNewPRsAfterFirstRun() async {
+@Test("should suppress notifications during the one-time schema migration")
+func shouldNotNotify_duringMigration() async {
   let bag = makeStore()
+  // hasInitialized=true + hasMigrated=false → an upgrading user with
+  // prior history but no snapshots yet. We must not flood them with
+  // notifications for every active PR on the upgrade refresh.
   bag.settings.hasInitialized = true
-  bag.settings.lastSeenPRIDs = ["PR_known"]
-  bag.fetcher.result = .success([
-    makePR(id: "PR_known", number: 1),
-    makePR(id: "PR_new", number: 2),
-  ])
-
-  await bag.store.refresh()
-
-  #expect(bag.notifier.notifiedBatches.count == 1)
-  let batch = bag.notifier.notifiedBatches.first ?? []
-  #expect(batch.map(\.id) == ["PR_new"])
-}
-
-@Test("should not notify when nothing in the fetch is new")
-func shouldNotNotify_whenNothingNew() async {
-  let bag = makeStore()
-  bag.settings.hasInitialized = true
-  bag.settings.lastSeenPRIDs = ["PR_1", "PR_2"]
+  bag.settings.hasMigrated = false
   bag.fetcher.result = .success([
     makePR(id: "PR_1", number: 1),
     makePR(id: "PR_2", number: 2),
@@ -256,6 +248,112 @@ func shouldNotNotify_whenNothingNew() async {
   await bag.store.refresh()
 
   #expect(bag.notifier.notifiedBatches.isEmpty)
+  #expect(bag.settings.hasMigrated == true)
+  // Snapshots are seeded so the next refresh has a baseline to diff against.
+  #expect(bag.settings.lastSeenSnapshots.count == 2)
+}
+
+@Test("should notify when a PR newly enters an actionable bucket")
+func shouldNotify_whenNewlyInActionableBucket() async {
+  let bag = makeStore()
+  bag.settings.hasInitialized = true
+  bag.settings.hasMigrated = true
+  bag.settings.lastSeenSnapshots = [
+    "PR_known": BucketAssignment(
+      needsApproval: true, wantsApproval: false, mentions: false, staleFlag: false)
+  ]
+  bag.fetcher.result = .success([
+    makePR(id: "PR_known", number: 1),
+    makePR(id: "PR_new", number: 2),
+  ])
+
+  await bag.store.refresh()
+
+  let notified = (bag.notifier.notifiedBatches.first ?? []).map(\.id)
+  #expect(notified == ["PR_new"])
+}
+
+@Test("should not notify when bucket state is unchanged across refreshes")
+func shouldNotNotify_whenBucketStateUnchanged() async {
+  let bag = makeStore()
+  bag.settings.hasInitialized = true
+  bag.settings.hasMigrated = true
+  let pr1Bucket = BucketAssignment(
+    needsApproval: true, wantsApproval: false, mentions: false, staleFlag: false)
+  let pr2Bucket = pr1Bucket
+  bag.settings.lastSeenSnapshots = ["PR_1": pr1Bucket, "PR_2": pr2Bucket]
+  bag.fetcher.result = .success([
+    makePR(id: "PR_1", number: 1),
+    makePR(id: "PR_2", number: 2),
+  ])
+
+  await bag.store.refresh()
+
+  #expect(bag.notifier.notifiedBatches.isEmpty)
+}
+
+@Test("should notify when a previously-approved PR newly becomes stale")
+func shouldNotify_whenPRNewlyStale() async {
+  let bag = makeStore()
+  bag.settings.hasInitialized = true
+  bag.settings.hasMigrated = true
+  // Last time we saw this PR, it was in needs-approval with no stale flag.
+  // This time the classifier marks it stale (new commits since my review)
+  // — staleFlag transitions false→true, which must fire a banner.
+  bag.settings.lastSeenSnapshots = [
+    "PR_stale": BucketAssignment(
+      needsApproval: true, wantsApproval: false, mentions: false, staleFlag: false)
+  ]
+  // Construct the PR so the classifier marks it stale: I have an old
+  // approved review, the HEAD commit is newer than that review.
+  let oldReview = Review(
+    authorLogin: me, state: .approved,
+    submittedAt: fixedNow.addingTimeInterval(-2 * 86_400))
+  let stalePR = makePR(
+    id: "PR_stale", number: 1,
+    latestCommitDate: fixedNow.addingTimeInterval(-3600),  // newer than my review
+    currentlyRequestedUsers: [],
+    everRequestedUsers: [me],
+    latestReviews: [oldReview]
+  )
+  bag.fetcher.result = .success([stalePR])
+
+  await bag.store.refresh()
+
+  let notified = (bag.notifier.notifiedBatches.first ?? []).map(\.id)
+  #expect(notified == ["PR_stale"])
+  // Sanity: the classifier really did mark it stale, otherwise the
+  // transition test isn't proving what it claims.
+  #expect(bag.store.prs.first { $0.id == "PR_stale" }?.bucket.staleFlag == true)
+}
+
+@Test("should notify when a PR auto-unarchives back into an active bucket")
+func shouldNotify_whenPRAutoUnarchives() async {
+  let bag = makeStore()
+  bag.settings.hasInitialized = true
+  bag.settings.hasMigrated = true
+  // No snapshot for PR_x — it was archived previously, so we dropped
+  // its snapshot. When it auto-unarchives, prev is nil and the
+  // "first time seen in an active bucket" path fires.
+  bag.settings.lastSeenSnapshots = [:]
+  // Archive entry whose snooze has already elapsed → auto-unarchive
+  // during refresh.
+  bag.settings.archives = [
+    ArchiveEntry(
+      prID: "PR_x",
+      mode: .snoozeUntil(fixedNow.addingTimeInterval(-60)),
+      archivedAt: fixedNow.addingTimeInterval(-3600),
+      baselineCommitDate: fixedNow.addingTimeInterval(-3600))
+  ]
+  bag.fetcher.result = .success([makePR(id: "PR_x", number: 1)])
+
+  await bag.store.refresh()
+
+  let notified = (bag.notifier.notifiedBatches.first ?? []).map(\.id)
+  #expect(notified == ["PR_x"])
+  // It should now be in active, not archived.
+  #expect(bag.store.prs.map(\.id) == ["PR_x"])
+  #expect(bag.store.archived.isEmpty)
 }
 
 // MARK: - Archive partitioning during refresh

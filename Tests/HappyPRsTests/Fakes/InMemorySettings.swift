@@ -8,7 +8,8 @@ import Foundation
 final class InMemorySettings: SettingsProtocol, @unchecked Sendable {
   var refreshIntervalSeconds: Int = 60
   var hiddenRepos: [String] = []
-  var lastSeenPRIDs: [String] = []
+  var lastSeenSnapshots: [String: BucketAssignment] = [:]
   var hasInitialized: Bool = false
+  var hasMigrated: Bool = false
   var archives: [ArchiveEntry] = []
 }
