@@ -21,6 +21,12 @@ mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp ".build/release/$APP_NAME" "$BINARY_PATH"
 cp "Resources/Info.plist.template" "$APP_DIR/Contents/Info.plist"
 
+# Ad-hoc re-sign the bundle so Info.plist is sealed and the codesign
+# identifier matches CFBundleIdentifier. Without this, UNUserNotifications
+# can't attribute permission to the bundle ID and silently denies.
+echo "==> Ad-hoc signing the bundle as $BUNDLE_ID"
+codesign --force --sign - --identifier "$BUNDLE_ID" "$APP_DIR"
+
 echo "==> Writing LaunchAgent at $LAUNCH_AGENT"
 mkdir -p "$LAUNCH_AGENT_DIR"
 sed "s#__BINARY_PATH__#$BINARY_PATH#" "Resources/LaunchAgent.plist.template" > "$LAUNCH_AGENT"

@@ -12,9 +12,30 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     public func requestAuthorization() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, error in
-            if let error { print("Notifier authorization error: \(error)") }
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error {
+                Self.log("authorization error: \(error)")
+            }
+            center.getNotificationSettings { settings in
+                Self.log("authorization granted=\(granted) status=\(Self.describe(settings.authorizationStatus))")
+            }
         }
+    }
+
+    private static func describe(_ status: UNAuthorizationStatus) -> String {
+        switch status {
+        case .notDetermined: return "notDetermined"
+        case .denied: return "denied"
+        case .authorized: return "authorized"
+        case .provisional: return "provisional"
+        case .ephemeral: return "ephemeral"
+        @unknown default: return "unknown(\(status.rawValue))"
+        }
+    }
+
+    private static func log(_ message: String) {
+        FileHandle.standardError.write(Data("Notifier: \(message)\n".utf8))
     }
 
     public func notify(for items: [PRStore.ClassifiedPR]) {
@@ -32,7 +53,7 @@ public final class Notifier: NSObject, UNUserNotificationCenterDelegate {
                 trigger: nil
             )
             center.add(request) { error in
-                if let error { print("Notifier post error: \(error)") }
+                if let error { Self.log("post error: \(error)") }
             }
         }
     }
