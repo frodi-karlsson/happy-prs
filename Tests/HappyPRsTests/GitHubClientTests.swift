@@ -20,6 +20,7 @@ struct GitHubClientTests {
 
 @Test("should POST a GraphQL query with bearer token and return body data")
 func shouldPostGraphQLQuery_andReturnBody() async throws {
+    MockURLProtocol.acquire(); defer { MockURLProtocol.requestHandler = nil; MockURLProtocol.release() }
     MockURLProtocol.requestHandler = { req in
         #expect(req.url == URL(string: "https://api.github.com/graphql"))
         #expect(req.httpMethod == "POST")
@@ -44,6 +45,7 @@ func shouldPostGraphQLQuery_andReturnBody() async throws {
 
 @Test("should throw httpError on non-2xx status")
 func shouldThrowHTTPError_onNon2xx() async {
+    MockURLProtocol.acquire(); defer { MockURLProtocol.requestHandler = nil; MockURLProtocol.release() }
     MockURLProtocol.requestHandler = { req in
         let resp = HTTPURLResponse(url: req.url!, statusCode: 401,
                                    httpVersion: nil, headerFields: nil)!
