@@ -1,33 +1,24 @@
+import AppKit
 import HappyPRs
 import SwiftUI
 
 @main
 struct HappyPRsApp: App {
-  @State private var settings: HappyPRs.Settings
-  @State private var store: PRStore
-
-  init() {
-    let settings = HappyPRs.Settings()
-    let auth = GitHubAuth()
-    let client = GitHubClient(tokenProvider: { try auth.token() })
-    let fetcher = PRFetcher(client: client)
-    let teamResolver = TeamResolver(client: client)
-    let store = PRStore(
-      auth: auth, fetcher: fetcher,
-      teamResolver: teamResolver, settings: settings,
-      notifier: Notifier.shared)
-    _settings = State(initialValue: settings)
-    _store = State(initialValue: store)
-  }
+  // Owning the store + settings on the AppDelegate lets the background
+  // refresh loop live for the entire app process lifetime, rather than
+  // being tied to the popover's appear/disappear (`.task` on
+  // `MenuView` was being cancelled every time the popover closed,
+  // which silently broke notifications for PRs arriving while the
+  // popover wasn't open).
+  @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
   var body: some Scene {
     MenuBarExtra {
-      MenuView(store: store)
-        .task(id: "background-loop") { await runBackgroundLoop() }
+      MenuView(store: appDelegate.store)
     } label: {
       HStack(spacing: 2) {
         Image(systemName: "checkmark.seal")
-        let count = store.prs.filter { $0.bucket.needsApproval }.count
+        let count = appDelegate.store.prs.filter { $0.bucket.needsApproval }.count
         if count > 0 {
           Text("\(count)")
         }
@@ -36,22 +27,49 @@ struct HappyPRsApp: App {
     .menuBarExtraStyle(.window)
 
     Window("Settings", id: "settings") {
-      SettingsView(settings: settings)
+      SettingsView(settings: appDelegate.settings)
     }
     .windowResizability(.contentSize)
     .defaultPosition(.center)
   }
+}
 
-  private func runBackgroundLoop() async {
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+  let settings: HappyPRs.Settings
+  let store: PRStore
+  private var refreshTask: Task<Void, Never>?
+
+  override init() {
+    let settings = HappyPRs.Settings()
+    let auth = GitHubAuth()
+    let client = GitHubClient(tokenProvider: { try auth.token() })
+    let fetcher = PRFetcher(client: client)
+    let teamResolver = TeamResolver(client: client)
+    self.settings = settings
+    self.store = PRStore(
+      auth: auth, fetcher: fetcher,
+      teamResolver: teamResolver, settings: settings,
+      notifier: Notifier.shared)
+    super.init()
+  }
+
+  func applicationDidFinishLaunching(_ notification: Notification) {
     Notifier.shared.requestAuthorization()
-    await store.refresh()
-    while !Task.isCancelled {
-      // Re-read on each iteration so changes in Settings take effect at
-      // the next refresh tick rather than only after relaunch.
-      let interval = TimeInterval(settings.refreshIntervalSeconds)
-      try? await Task.sleep(for: .seconds(interval))
-      if Task.isCancelled { break }
+    refreshTask = Task { [settings, store] in
       await store.refresh()
+      while !Task.isCancelled {
+        // Re-read each iteration so a Settings change takes effect at
+        // the next tick instead of waiting for relaunch.
+        let interval = TimeInterval(settings.refreshIntervalSeconds)
+        try? await Task.sleep(for: .seconds(interval))
+        if Task.isCancelled { break }
+        await store.refresh()
+      }
     }
+  }
+
+  func applicationWillTerminate(_ notification: Notification) {
+    refreshTask?.cancel()
   }
 }
