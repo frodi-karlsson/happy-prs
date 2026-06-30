@@ -52,14 +52,16 @@ func shouldRunOneSearchPerFilter_andDedupe() async throws {
   #expect(client.calls.count == 4)
 }
 
-@Test("should follow pagination cursor across multiple search pages")
+@Test("should follow pagination cursor when search returns hasNextPage")
 func shouldFollowPaginationCursor() async throws {
   let client = FakeGitHubClient()
-  // First filter (review-requested) returns two pages.
-  // Remaining two filters return one page each, no overlap.
+  // The first response sent (whichever filter happens to pop it) tells
+  // PRFetcher there's a second page. Phase 1 is parallel so we can't
+  // bind a specific filter to that response, but the queue still pops
+  // in order — one filter consumes responses 0 + 3 (its two pages),
+  // the other two consume 1 and 2 (single-page each).
   client.responses = [
-    .success(
-      jsonResponse(searchPageJSON(ids: ["PR_a"], hasNextPage: true, endCursor: "cur1"))),
+    .success(jsonResponse(searchPageJSON(ids: ["PR_a"], hasNextPage: true, endCursor: "cur1"))),
     .success(jsonResponse(searchPageJSON(ids: ["PR_b"]))),
     .success(jsonResponse(searchPageJSON(ids: ["PR_c"]))),
     .success(jsonResponse(searchPageJSON(ids: ["PR_d"]))),
@@ -70,12 +72,14 @@ func shouldFollowPaginationCursor() async throws {
   let prs = try await fetcher.fetch(teams: [], detailBatchSize: 50)
 
   #expect(prs.count == 4)
-  // 2 search calls for first filter (paginated) + 1 each for the other two
-  // + 1 detail batch = 5 calls.
   #expect(client.calls.count == 5)
-  // The second call must carry the cursor we returned.
-  let secondCallVars = client.calls[1].variables
-  #expect((secondCallVars["cursor"] as? String) == "cur1")
+
+  // Order-independent check: among the 4 search calls, exactly one
+  // must have carried the cursor we handed out.
+  let searchCalls = client.calls.filter { ($0.variables["ids"] as? [String]) == nil }
+  let cursorCalls = searchCalls.filter { ($0.variables["cursor"] as? String) == "cur1" }
+  #expect(searchCalls.count == 4)
+  #expect(cursorCalls.count == 1)
 }
 
 @Test("should chunk detail fetch by detailBatchSize")

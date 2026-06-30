@@ -8,28 +8,32 @@ public final class PRFetcher: PRFetcherProtocol, @unchecked Sendable {
   }
 
   /// Runs the per-filter searches + per-PR detail fetch. Returns deduped PRs.
-  /// One search query is run per filter (review-requested, mentions,
-  /// reviewed-by, and one per team) because GitHub search doesn't OR
-  /// across qualifiers — see `Queries.buildSearchQueries`.
+  ///
+  /// Phase 1 (search) runs every filter concurrently — different filters
+  /// don't depend on each other so we don't need to wait for the slowest
+  /// one before starting the next. Pagination within a single filter
+  /// stays sequential because each next page needs the previous cursor.
+  /// Phase 2 (details) batches IDs and runs sequentially; the wins from
+  /// parallelising the search phase are where the latency lived.
   public func fetch(teams: [TeamRef], detailBatchSize: Int = 50) async throws -> [PullRequest] {
     let queries = Queries.buildSearchQueries(teams: teams)
-    var allIds: Set<String> = []
-    for query in queries {
-      var cursor: String? = nil
-      repeat {
-        let resp = try await client.graphQL(
-          query: Queries.searchPRs,
-          variables: ["query": query, "cursor": cursor ?? NSNull()]
-        )
-        let page = try ResponseDecoding.decodeSearchPage(resp.data)
-        allIds.formUnion(page.ids)
-        cursor = page.hasNextPage ? page.endCursor : nil
-      } while cursor != nil
+    let client = self.client
+
+    let allIds: [String] = try await withThrowingTaskGroup(of: [String].self) { group in
+      for query in queries {
+        group.addTask {
+          try await Self.collectAllIds(client: client, query: query)
+        }
+      }
+      var union: Set<String> = []
+      for try await ids in group {
+        union.formUnion(ids)
+      }
+      return Array(union)
     }
 
     var prs: [PullRequest] = []
-    let idList = Array(allIds)
-    for chunk in idList.chunks(ofCount: detailBatchSize) {
+    for chunk in allIds.chunks(ofCount: detailBatchSize) {
       let resp = try await client.graphQL(
         query: Queries.prDetails,
         variables: ["ids": Array(chunk)]
@@ -37,6 +41,24 @@ public final class PRFetcher: PRFetcherProtocol, @unchecked Sendable {
       prs.append(contentsOf: try ResponseDecoding.decodePRDetails(resp.data))
     }
     return prs
+  }
+
+  /// Paginate through one search filter and return every PR ID it yields.
+  private static func collectAllIds(
+    client: GitHubClientProtocol, query: String
+  ) async throws -> [String] {
+    var ids: [String] = []
+    var cursor: String? = nil
+    repeat {
+      let resp = try await client.graphQL(
+        query: Queries.searchPRs,
+        variables: ["query": query, "cursor": cursor ?? NSNull()]
+      )
+      let page = try ResponseDecoding.decodeSearchPage(resp.data)
+      ids.append(contentsOf: page.ids)
+      cursor = page.hasNextPage ? page.endCursor : nil
+    } while cursor != nil
+    return ids
   }
 }
 
