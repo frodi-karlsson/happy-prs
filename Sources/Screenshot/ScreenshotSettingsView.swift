@@ -5,19 +5,15 @@ import SwiftUI
 /// `SettingsView` uses `Form { Section { … } }` and `Picker`, all of
 /// which lean on AppKit chrome that ImageRenderer can't host — the
 /// rendered card comes out empty. This view mirrors the same content
-/// using plain primitives so the README image actually shows the
-/// settings UI.
+/// using plain primitives, wrapped in `ScreenshotChrome` for the
+/// frosted-glass backdrop shared with `ScreenshotMenuView`.
 struct ScreenshotSettingsView: View {
   let settings: HappyPRs.Settings
 
   var body: some View {
-    card
-      .background(Color.white)
-      .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-      .shadow(color: .black.opacity(0.25), radius: 16, x: 0, y: 8)
-      .padding(36)
-      .background(backdrop)
-      .environment(\.rowActionsEnabled, false)
+    ScreenshotChrome {
+      card
+    }
   }
 
   private var card: some View {
@@ -84,24 +80,13 @@ struct ScreenshotSettingsView: View {
       }
       .padding(12)
       .frame(maxWidth: .infinity, alignment: .leading)
-      .background(Color.gray.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+      .background(Color.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
       if let footer {
         Text(footer)
           .font(.caption)
           .foregroundStyle(.secondary)
       }
     }
-  }
-
-  private var backdrop: some View {
-    LinearGradient(
-      colors: [
-        Color(red: 0.18, green: 0.22, blue: 0.32),
-        Color(red: 0.10, green: 0.13, blue: 0.20),
-      ],
-      startPoint: .topLeading,
-      endPoint: .bottomTrailing
-    )
   }
 
   private func intervalLabel(_ seconds: Int) -> String {
