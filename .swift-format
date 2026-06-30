@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "lineLength": 120,
+  "indentation": { "spaces": 2 },
+  "tabWidth": 2,
+  "respectsExistingLineBreaks": true,
+  "lineBreakBeforeControlFlowKeywords": false,
+  "lineBreakBeforeEachArgument": false,
+  "maximumBlankLines": 1,
+  "rules": {
+    "AllPublicDeclarationsHaveDocumentation": false,
+    "NoBlockComments": false,
+    "OrderedImports": true,
+    "UseShorthandTypeNames": true,
+    "UseSynthesizedInitializer": false,
+    "UseLetInEveryBoundCaseVariable": true,
+    "NoLeadingUnderscores": false,
+    "AlwaysUseLowerCamelCase": true,
+    "DontRepeatTypeInStaticProperties": true
+  }
+}

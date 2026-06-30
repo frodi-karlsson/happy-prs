@@ -1,9 +1,9 @@
 import Foundation
 
 public enum Queries {
-    /// Phase 1: combined search returning PR node IDs.
-    /// Variables: `query: String`, `cursor: String?` (or null for first page).
-    public static let searchPRs = #"""
+  /// Phase 1: combined search returning PR node IDs.
+  /// Variables: `query: String`, `cursor: String?` (or null for first page).
+  public static let searchPRs = #"""
     query Search($query: String!, $cursor: String) {
       search(type: ISSUE, query: $query, first: 100, after: $cursor) {
         pageInfo { endCursor hasNextPage }
@@ -15,8 +15,8 @@ public enum Queries {
     }
     """#
 
-    /// Phase 2: detail batch. Variables: `ids: [ID!]!`, `me: String!`.
-    public static let prDetails = #"""
+  /// Phase 2: detail batch. Variables: `ids: [ID!]!`, `me: String!`.
+  public static let prDetails = #"""
     query Details($ids: [ID!]!) {
       nodes(ids: $ids) {
         ... on PullRequest {
@@ -57,8 +57,8 @@ public enum Queries {
     }
     """#
 
-    /// Viewer + team memberships for team auto-discovery.
-    public static let viewerAndTeams = #"""
+  /// Viewer + team memberships for team auto-discovery.
+  public static let viewerAndTeams = #"""
     query ViewerAndTeams($me: String!) {
       viewer { login }
       user(login: $me) {
@@ -72,21 +72,21 @@ public enum Queries {
     }
     """#
 
-    /// Builds Phase 1 search query strings — one per filter, since GitHub
-    /// search does not actually OR these qualifiers together (empirically
-    /// confirmed: a query like `review-requested:@me OR mentions:@me`
-    /// returns zero results regardless of operands). The fetcher runs each
-    /// query separately and unions the resulting PR IDs client-side.
-    public static func buildSearchQueries(teams: [TeamRef]) -> [String] {
-        let prefix = "is:open is:pr archived:false -author:@me"
-        var queries: [String] = [
-            "\(prefix) review-requested:@me",
-            "\(prefix) mentions:@me",
-            "\(prefix) reviewed-by:@me",
-        ]
-        for t in teams {
-            queries.append("\(prefix) team-review-requested:\(t.org)/\(t.slug)")
-        }
-        return queries
+  /// Builds Phase 1 search query strings — one per filter, since GitHub
+  /// search does not actually OR these qualifiers together (empirically
+  /// confirmed: a query like `review-requested:@me OR mentions:@me`
+  /// returns zero results regardless of operands). The fetcher runs each
+  /// query separately and unions the resulting PR IDs client-side.
+  public static func buildSearchQueries(teams: [TeamRef]) -> [String] {
+    let prefix = "is:open is:pr archived:false -author:@me"
+    var queries: [String] = [
+      "\(prefix) review-requested:@me",
+      "\(prefix) mentions:@me",
+      "\(prefix) reviewed-by:@me",
+    ]
+    for t in teams {
+      queries.append("\(prefix) team-review-requested:\(t.org)/\(t.slug)")
     }
+    return queries
+  }
 }
