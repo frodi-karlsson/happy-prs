@@ -31,11 +31,14 @@ To update after pulling changes, re-run `./install.sh`.
 ## Development
 
 ```sh
+./setup-hooks.sh # one-time: activates .githooks/ for this clone
 ./dev.sh         # swift run with the installed copy stopped
 swift test       # run the test suite
 ```
 
 `dev.sh` runs the binary directly via `swift run`. You'll see a transient dock icon during development — that's expected (it goes away in the bundled `.app`).
+
+The pre-commit hook (`.githooks/pre-commit`) regenerates the README screenshot whenever a commit touches `Sources/`, and re-stages the PNG only if its content changed. Bypass with `git commit --no-verify` if you ever need to.
 
 ## Uninstall
 

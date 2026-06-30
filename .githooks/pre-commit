@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Regenerate the README hero screenshot when staged changes could affect
+# the rendered UI. Skips entirely when nothing under Sources/ is staged
+# so non-UI commits (docs, CI, scripts) don't pay the cost.
+set -euo pipefail
+
+# Bypass via `git commit --no-verify`.
+staged_sources=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^Sources/' || true)
+if [ -z "$staged_sources" ]; then
+  exit 0
+fi
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+screenshot="docs/screenshots/loaded.png"
+echo "pre-commit: regenerating $screenshot"
+swift run --quiet Screenshot >/dev/null
+
+# Only stage the PNG if its content actually changed. Identical re-renders
+# are a no-op — keeps the commit lean and history small.
+if ! git diff --quiet -- "$screenshot" 2>/dev/null; then
+  git add "$screenshot"
+  echo "pre-commit: staged updated $screenshot"
+fi
