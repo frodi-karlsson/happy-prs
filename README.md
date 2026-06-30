@@ -6,9 +6,9 @@ macOS menubar app showing GitHub PRs that need my input.
 
 ## Buckets
 
-- **🔴 Needs your approval** — I (or my team) am a reviewer, and no one has approved the current HEAD yet.
-- **🟡 Wants your approval** — same as above, but someone else has already approved.
-- **💬 Mentions you** — I'm `@`-mentioned in the body, a comment, a review summary, or an inline review thread. Additive — can overlap with the other buckets.
+- **Needs your approval** — I (or my team) am a reviewer, and no one has approved the current HEAD yet.
+- **Wants your approval** — same as above, but someone else has already approved.
+- **Mentions you** — I'm `@`-mentioned in the body, a comment, a review summary, or an inline review thread. Additive — can overlap with the other buckets.
 
 Stale-approval detection: catches PRs where my prior approval was dismissed by new commits but GitHub didn't re-request me.
 

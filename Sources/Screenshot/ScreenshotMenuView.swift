@@ -22,15 +22,15 @@ struct ScreenshotMenuView: View {
     VStack(alignment: .leading, spacing: 0) {
       VStack(alignment: .leading, spacing: 14) {
         BucketSectionView(
-          title: "🔴 Needs your approval",
+          title: "Needs your approval",
           items: needs, bucketLabel: "needs", store: store
         )
         BucketSectionView(
-          title: "🟡 Wants your approval",
+          title: "Wants your approval",
           items: wants, bucketLabel: "wants", store: store
         )
         BucketSectionView(
-          title: "💬 Mentions you",
+          title: "Mentions you",
           items: mentions, bucketLabel: "mentions", store: store
         )
         ArchivedSectionView(

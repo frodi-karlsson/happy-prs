@@ -13,21 +13,21 @@ public struct MenuView: View {
       ScrollView {
         VStack(alignment: .leading, spacing: 14) {
           if store.prs.isEmpty && store.archived.isEmpty {
-            Text("Nothing waiting on you. 🎉")
+            Text("Nothing waiting on you.")
               .foregroundStyle(.secondary)
               .frame(maxWidth: .infinity, alignment: .center)
               .padding(.vertical, 12)
           } else {
             BucketSectionView(
-              title: "🔴 Needs your approval",
+              title: "Needs your approval",
               items: needs, bucketLabel: "needs", store: store
             )
             BucketSectionView(
-              title: "🟡 Wants your approval",
+              title: "Wants your approval",
               items: wants, bucketLabel: "wants", store: store
             )
             BucketSectionView(
-              title: "💬 Mentions you",
+              title: "Mentions you",
               items: mentions, bucketLabel: "mentions", store: store
             )
             ArchivedSectionView(
