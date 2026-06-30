@@ -4,6 +4,7 @@ struct PRRowView: View {
   let item: ClassifiedPR
   let bucketLabel: String  // "needs" | "wants" | "mentions"
   let store: PRStore
+  @Environment(\.rowActionsEnabled) private var rowActionsEnabled
 
   var body: some View {
     HStack(alignment: .top, spacing: 8) {
@@ -16,7 +17,7 @@ struct PRRowView: View {
 
       VStack(alignment: .leading, spacing: 2) {
         HStack(spacing: 6) {
-          Text("\(item.pr.repo) #\(item.pr.number)")
+          Text(verbatim: "\(item.pr.repo) #\(item.pr.number)")
             .font(.system(.caption, design: .monospaced))
             .foregroundStyle(.secondary)
           if item.bucket.staleFlag && bucketLabel != "mentions" {
@@ -44,30 +45,35 @@ struct PRRowView: View {
           .foregroundStyle(.secondary)
       }
 
-      Menu {
-        Button("Archive until activity") {
-          store.archive(id: item.id, mode: .untilActivity)
+      if rowActionsEnabled {
+        Menu {
+          Button("Archive until activity") {
+            store.archive(id: item.id, mode: .untilActivity)
+          }
+          Button("Archive forever") {
+            store.archive(id: item.id, mode: .forever)
+          }
+          Divider()
+          Button("Snooze 1 day") {
+            store.archive(id: item.id, mode: .snoozeUntil(Date().addingTimeInterval(86_400)))
+          }
+          Button("Snooze 3 days") {
+            store.archive(id: item.id, mode: .snoozeUntil(Date().addingTimeInterval(3 * 86_400)))
+          }
+          Button("Snooze 1 week") {
+            store.archive(id: item.id, mode: .snoozeUntil(Date().addingTimeInterval(7 * 86_400)))
+          }
+        } label: {
+          Image(systemName: "ellipsis.circle")
+            .foregroundStyle(.secondary)
         }
-        Button("Archive forever") {
-          store.archive(id: item.id, mode: .forever)
-        }
-        Divider()
-        Button("Snooze 1 day") {
-          store.archive(id: item.id, mode: .snoozeUntil(Date().addingTimeInterval(86_400)))
-        }
-        Button("Snooze 3 days") {
-          store.archive(id: item.id, mode: .snoozeUntil(Date().addingTimeInterval(3 * 86_400)))
-        }
-        Button("Snooze 1 week") {
-          store.archive(id: item.id, mode: .snoozeUntil(Date().addingTimeInterval(7 * 86_400)))
-        }
-      } label: {
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+      } else {
         Image(systemName: "ellipsis.circle")
           .foregroundStyle(.secondary)
       }
-      .menuStyle(.borderlessButton)
-      .menuIndicator(.hidden)
-      .fixedSize()
     }
     .contentShape(Rectangle())
     .onTapGesture { open() }

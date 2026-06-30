@@ -1,12 +1,19 @@
 import SwiftUI
 
-struct BucketSectionView: View {
+public struct BucketSectionView: View {
   let title: String
   let items: [ClassifiedPR]
   let bucketLabel: String
   let store: PRStore
 
-  var body: some View {
+  public init(title: String, items: [ClassifiedPR], bucketLabel: String, store: PRStore) {
+    self.title = title
+    self.items = items
+    self.bucketLabel = bucketLabel
+    self.store = store
+  }
+
+  public var body: some View {
     if !items.isEmpty {
       VStack(alignment: .leading, spacing: 4) {
         Text("\(title) (\(items.count))")

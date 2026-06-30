@@ -1,11 +1,18 @@
 import SwiftUI
 
-struct ArchivedSectionView: View {
+public struct ArchivedSectionView: View {
   let items: [ClassifiedPR]
   @Binding var isExpanded: Bool
   let store: PRStore
+  @Environment(\.rowActionsEnabled) private var rowActionsEnabled
 
-  var body: some View {
+  public init(items: [ClassifiedPR], isExpanded: Binding<Bool>, store: PRStore) {
+    self.items = items
+    self._isExpanded = isExpanded
+    self.store = store
+  }
+
+  public var body: some View {
     if !items.isEmpty {
       VStack(alignment: .leading, spacing: 4) {
         Button {
@@ -24,7 +31,7 @@ struct ArchivedSectionView: View {
           ForEach(items) { item in
             HStack(spacing: 8) {
               VStack(alignment: .leading, spacing: 2) {
-                Text("\(item.pr.repo) #\(item.pr.number)")
+                Text(verbatim: "\(item.pr.repo) #\(item.pr.number)")
                   .font(.system(.caption, design: .monospaced))
                   .foregroundStyle(.secondary)
                 Text(item.pr.title)
@@ -32,10 +39,12 @@ struct ArchivedSectionView: View {
                   .truncationMode(.tail)
               }
               Spacer()
-              Button("Unarchive") {
-                store.unarchive(id: item.id)
+              if rowActionsEnabled {
+                Button("Unarchive") {
+                  store.unarchive(id: item.id)
+                }
+                .font(.caption)
               }
-              .font(.caption)
             }
             .contentShape(Rectangle())
             .onTapGesture {

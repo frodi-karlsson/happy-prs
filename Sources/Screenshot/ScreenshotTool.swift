@@ -15,10 +15,7 @@ struct ScreenshotTool {
       at: outputDir, withIntermediateDirectories: true)
 
     let store = await PreviewData.loadedStore()
-    let view = MenuView(store: store)
-      // MenuView already sets its own width/height frame; the inner ScrollView
-      // expands to fill — clamp the renderer canvas at the same dimensions.
-      .frame(width: 480, height: 600)
+    let view = ScreenshotMenuView(store: store)
 
     let renderer = ImageRenderer(content: view)
     renderer.scale = 2.0
