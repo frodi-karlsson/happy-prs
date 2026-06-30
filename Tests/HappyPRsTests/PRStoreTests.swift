@@ -498,3 +498,24 @@ func shouldUnarchiveAction_noOp_whenIDUnknown() async {
 
   #expect(bag.settings.archives.isEmpty)
 }
+
+// MARK: - Sort order
+
+@MainActor @Test("should sort active and archived by latestCommitDate descending")
+func shouldSortByLatestCommitDate_descending() async {
+  let bag = makeStore()
+  let recent = makePR(
+    id: "PR_recent", number: 1, latestCommitDate: fixedNow.addingTimeInterval(-60))
+  let middle = makePR(
+    id: "PR_middle", number: 2, latestCommitDate: fixedNow.addingTimeInterval(-3600))
+  let oldest = makePR(
+    id: "PR_oldest", number: 3, latestCommitDate: fixedNow.addingTimeInterval(-86_400))
+  // Fetcher returns them deliberately out of order — the store has to
+  // sort regardless. (PRFetcher dedupes through a Set so the order it
+  // hands back is not deterministic across runs.)
+  bag.fetcher.result = .success([middle, oldest, recent])
+
+  await bag.store.refresh()
+
+  #expect(bag.store.prs.map(\.id) == ["PR_recent", "PR_middle", "PR_oldest"])
+}

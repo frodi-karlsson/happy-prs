@@ -103,8 +103,11 @@ public final class PRStore {
         newSnapshots[item.id] = item.bucket
       }
 
-      prs = active
-      archived = archivedNow
+      // Sort most-recently-active first so the popover is stable
+      // across refreshes (PRFetcher dedupes through a Set, so its
+      // own output order is non-deterministic).
+      prs = active.sorted { $0.pr.latestCommitDate > $1.pr.latestCommitDate }
+      archived = archivedNow.sorted { $0.pr.latestCommitDate > $1.pr.latestCommitDate }
       settings.lastSeenSnapshots = newSnapshots
       settings.hasInitialized = true
       settings.hasMigrated = true

@@ -4,6 +4,7 @@ import SwiftUI
 public struct SettingsView: View {
   @Bindable var settings: Settings
   @State private var newRepoInput: String = ""
+  @State private var loginItemStatus: SMAppService.Status = .notRegistered
   @Environment(\.rowActionsEnabled) private var rowActionsEnabled
 
   public init(settings: Settings) {
@@ -23,6 +24,13 @@ public struct SettingsView: View {
       }
       Section {
         Toggle("Open at login", isOn: openAtLoginBinding)
+        if loginItemStatus == .requiresApproval {
+          Text(
+            "macOS needs to approve this. Open **System Settings → General → Login Items** and enable Happy PRs there."
+          )
+          .font(.caption)
+          .foregroundStyle(.orange)
+        }
       } header: {
         Text("Startup")
       } footer: {
@@ -73,15 +81,18 @@ public struct SettingsView: View {
       }
     }
     .formStyle(.grouped)
-    .frame(width: 460, height: 400)
+    .frame(width: 460, height: 420)
+    .onAppear { refreshLoginItemStatus() }
   }
 
   /// Reads/writes the system's login-item registration for the app's
-  /// main bundle. Re-evaluates the getter on each view rebuild so the
-  /// toggle reflects current status after registration completes.
+  /// main bundle. The getter is backed by `@State` so SwiftUI redraws
+  /// the toggle when the status changes. `.requiresApproval` and
+  /// `.enabled` both render as on — the former with a hint telling
+  /// the user to finish approval in System Settings.
   private var openAtLoginBinding: Binding<Bool> {
     Binding(
-      get: { SMAppService.mainApp.status == .enabled },
+      get: { loginItemStatus == .enabled || loginItemStatus == .requiresApproval },
       set: { newValue in
         do {
           if newValue {
@@ -95,8 +106,13 @@ public struct SettingsView: View {
               "Settings: open-at-login \(newValue ? "register" : "unregister") error: \(error)\n"
                 .utf8))
         }
+        refreshLoginItemStatus()
       }
     )
+  }
+
+  private func refreshLoginItemStatus() {
+    loginItemStatus = SMAppService.mainApp.status
   }
 
   private func addRepo() {
