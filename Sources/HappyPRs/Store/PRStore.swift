@@ -2,6 +2,7 @@ import Foundation
 import Observation
 
 @Observable
+@MainActor
 public final class PRStore {
   public private(set) var refreshState: RefreshState = .idle
   public private(set) var lastRefreshAt: Date? = nil

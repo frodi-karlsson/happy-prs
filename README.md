@@ -27,7 +27,7 @@ brew install --cask frodi-karlsson/tap/happy-prs
 open "/Applications/Happy PRs.app"
 ```
 
-To have it start automatically on login, right-click the dock icon → **Options → Open at Login**, or add it under **System Settings → General → Login Items**.
+To have it start automatically on login, open Settings (⌘, from the menubar popover, or via the **Settings…** button in the footer) and toggle **Open at login** under the **Startup** section. macOS will prompt for permission the first time; once approved, Happy PRs starts at every sign-in.
 
 ### From source (auto-starts on login)
 
@@ -35,7 +35,7 @@ To have it start automatically on login, right-click the dock icon → **Options
 ./install.sh
 ```
 
-This builds in release mode, bundles the binary into `~/Applications/Happy PRs.app`, and registers a LaunchAgent so the app starts on login. Re-run after pulling changes to update.
+This builds in release mode, bundles the binary into `~/Applications/Happy PRs.app`, and registers a LaunchAgent so the app starts on login. Re-run after pulling changes to update. (You can also use the in-app **Open at login** toggle on the brew-installed app instead — both end up registering with launchd, just via different mechanisms.)
 
 ## Development
 
@@ -59,6 +59,6 @@ Removes the LaunchAgent, the app bundle, and stops the running process. UserDefa
 
 ## Settings
 
-Open with `⌘,` from the menubar popover (or click the **Settings…** button in the footer). Choose how often the app polls GitHub, and hide repos whose PRs you never want to see.
+Open with `⌘,` from the menubar popover (or click the **Settings…** button in the footer). Choose how often the app polls GitHub, toggle whether it should start at login, and hide repos whose PRs you never want to see.
 
 ![Settings window](screenshots/settings.png)

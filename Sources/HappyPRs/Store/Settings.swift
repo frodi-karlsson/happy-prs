@@ -2,9 +2,14 @@ import Foundation
 import Observation
 
 // @unchecked because @Observable exposes mutable stored properties.
-// In practice Settings is only mutated from the main actor (SwiftUI
-// view bindings, PRStore's refresh) and UserDefaults itself is
-// documented as thread-safe for the didSet pass-through writes.
+// Mutation is funneled through two callsites:
+//   - `PRStore.refresh()` and the archive/unarchive actions, which run
+//     on the main actor because `PRStore` is `@MainActor`-isolated.
+//   - `SettingsView` bindings, which are MainActor by virtue of being
+//     SwiftUI views.
+// UserDefaults itself is documented as thread-safe for the didSet
+// pass-through writes, so the unchecked promise is compiler-enforced
+// at every realistic call site.
 @Observable
 public final class Settings: SettingsProtocol, @unchecked Sendable {
   @ObservationIgnored private let defaults: UserDefaults

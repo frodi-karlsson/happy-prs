@@ -48,7 +48,10 @@ private func makePR(
   )
 }
 
-/// Build a fully-wired PRStore with the supplied fakes.
+/// Build a fully-wired PRStore with the supplied fakes. Marked
+/// `@MainActor` because `PRStore` is MainActor-isolated and its init
+/// must run on the main actor.
+@MainActor
 private func makeStore(
   auth: FakeTokenProvider = FakeTokenProvider(),
   fetcher: FakePRFetcher = FakePRFetcher(),
@@ -70,7 +73,7 @@ private func makeStore(
 
 // MARK: - Auth-path mapping
 
-@Test("should set ghNotInstalled when token() throws notInstalled")
+@MainActor @Test("should set ghNotInstalled when token() throws notInstalled")
 func shouldSetGhNotInstalled_whenTokenThrowsNotInstalled() async {
   let bag = makeStore()
   bag.auth.tokenResult = .failure(GitHubAuthError.notInstalled)
@@ -81,7 +84,7 @@ func shouldSetGhNotInstalled_whenTokenThrowsNotInstalled() async {
   #expect(bag.fetcher.fetchCount == 0)
 }
 
-@Test("should set notAuthenticated when token() throws notAuthenticated")
+@MainActor @Test("should set notAuthenticated when token() throws notAuthenticated")
 func shouldSetNotAuthenticated_whenTokenThrowsNotAuthenticated() async {
   let bag = makeStore()
   bag.auth.tokenResult = .failure(GitHubAuthError.notAuthenticated)
@@ -92,7 +95,7 @@ func shouldSetNotAuthenticated_whenTokenThrowsNotAuthenticated() async {
   #expect(bag.fetcher.fetchCount == 0)
 }
 
-@Test("should set error state when token() throws an unexpected error")
+@MainActor @Test("should set error state when token() throws an unexpected error")
 func shouldSetError_whenTokenThrowsUnexpected() async {
   struct Boom: Error {}
   let bag = makeStore()
@@ -108,7 +111,7 @@ func shouldSetError_whenTokenThrowsUnexpected() async {
 
 // MARK: - Happy path + lifecycle
 
-@Test("should populate prs, lastRefreshAt, and hasInitialized on success")
+@MainActor @Test("should populate prs, lastRefreshAt, and hasInitialized on success")
 func shouldPopulateState_onSuccess() async {
   let bag = makeStore()
   let pr = makePR(id: "PR_1", number: 1)
@@ -123,7 +126,7 @@ func shouldPopulateState_onSuccess() async {
   #expect(bag.store.prs[0].pr.id == "PR_1")
 }
 
-@Test("should pass the resolved teams down to the fetcher")
+@MainActor @Test("should pass the resolved teams down to the fetcher")
 func shouldPassResolvedTeams_toFetcher() async {
   let bag = makeStore()
   bag.fetcher.result = .success([])
@@ -133,7 +136,7 @@ func shouldPassResolvedTeams_toFetcher() async {
   #expect(bag.fetcher.lastTeams == [myTeam])
 }
 
-@Test("should snapshot active PRs only; archived PRs lose their snapshot")
+@MainActor @Test("should snapshot active PRs only; archived PRs lose their snapshot")
 func shouldSnapshotActiveOnly_notArchived() async {
   let bag = makeStore()
   let active = makePR(id: "PR_active", number: 1)
@@ -153,7 +156,7 @@ func shouldSnapshotActiveOnly_notArchived() async {
 
 // MARK: - Error mapping below the auth gate
 
-@Test("should set rateLimited when fetcher throws 403 httpError")
+@MainActor @Test("should set rateLimited when fetcher throws 403 httpError")
 func shouldSetRateLimited_when403() async {
   let bag = makeStore()
   bag.fetcher.result = .failure(
@@ -168,7 +171,7 @@ func shouldSetRateLimited_when403() async {
   }
 }
 
-@Test("should set error state for non-403 fetcher failures")
+@MainActor @Test("should set error state for non-403 fetcher failures")
 func shouldSetError_forNon403Failure() async {
   struct Boom: Error {}
   let bag = makeStore()
@@ -184,7 +187,7 @@ func shouldSetError_forNon403Failure() async {
 
 // MARK: - Classification integration
 
-@Test("should drop PRs whose classification is dropped (e.g. drafts)")
+@MainActor @Test("should drop PRs whose classification is dropped (e.g. drafts)")
 func shouldDropDrafts() async {
   let bag = makeStore()
   let real = makePR(id: "PR_keep", number: 1)
@@ -196,7 +199,7 @@ func shouldDropDrafts() async {
   #expect(bag.store.prs.map(\.id) == ["PR_keep"])
 }
 
-@Test("should mark a PR as new when there's no prior snapshot for its ID")
+@MainActor @Test("should mark a PR as new when there's no prior snapshot for its ID")
 func shouldMarkAsNew_whenNoPriorSnapshot() async {
   let bag = makeStore()
   bag.settings.hasInitialized = true
@@ -218,7 +221,7 @@ func shouldMarkAsNew_whenNoPriorSnapshot() async {
 
 // MARK: - First-run gate
 
-@Test("should not notify on the first refresh after install")
+@MainActor @Test("should not notify on the first refresh after install")
 func shouldNotNotify_onFirstRun() async {
   let bag = makeStore()
   bag.settings.hasInitialized = false
@@ -232,7 +235,7 @@ func shouldNotNotify_onFirstRun() async {
   #expect(bag.settings.hasMigrated == true)
 }
 
-@Test("should suppress notifications during the one-time schema migration")
+@MainActor @Test("should suppress notifications during the one-time schema migration")
 func shouldNotNotify_duringMigration() async {
   let bag = makeStore()
   // hasInitialized=true + hasMigrated=false → an upgrading user with
@@ -253,7 +256,7 @@ func shouldNotNotify_duringMigration() async {
   #expect(bag.settings.lastSeenSnapshots.count == 2)
 }
 
-@Test("should notify when a PR newly enters an actionable bucket")
+@MainActor @Test("should notify when a PR newly enters an actionable bucket")
 func shouldNotify_whenNewlyInActionableBucket() async {
   let bag = makeStore()
   bag.settings.hasInitialized = true
@@ -273,7 +276,7 @@ func shouldNotify_whenNewlyInActionableBucket() async {
   #expect(notified == ["PR_new"])
 }
 
-@Test("should not notify when bucket state is unchanged across refreshes")
+@MainActor @Test("should not notify when bucket state is unchanged across refreshes")
 func shouldNotNotify_whenBucketStateUnchanged() async {
   let bag = makeStore()
   bag.settings.hasInitialized = true
@@ -292,7 +295,7 @@ func shouldNotNotify_whenBucketStateUnchanged() async {
   #expect(bag.notifier.notifiedBatches.isEmpty)
 }
 
-@Test("should notify when a previously-approved PR newly becomes stale")
+@MainActor @Test("should notify when a previously-approved PR newly becomes stale")
 func shouldNotify_whenPRNewlyStale() async {
   let bag = makeStore()
   bag.settings.hasInitialized = true
@@ -327,7 +330,7 @@ func shouldNotify_whenPRNewlyStale() async {
   #expect(bag.store.prs.first { $0.id == "PR_stale" }?.bucket.staleFlag == true)
 }
 
-@Test("should notify when a PR auto-unarchives back into an active bucket")
+@MainActor @Test("should notify when a PR auto-unarchives back into an active bucket")
 func shouldNotify_whenPRAutoUnarchives() async {
   let bag = makeStore()
   bag.settings.hasInitialized = true
@@ -358,7 +361,7 @@ func shouldNotify_whenPRAutoUnarchives() async {
 
 // MARK: - Archive partitioning during refresh
 
-@Test("should put PRs with active archive entries into archived, not prs")
+@MainActor @Test("should put PRs with active archive entries into archived, not prs")
 func shouldPartitionActiveArchiveEntries() async {
   let bag = makeStore()
   let archivedPR = makePR(id: "PR_archived", number: 1)
@@ -377,7 +380,7 @@ func shouldPartitionActiveArchiveEntries() async {
   #expect(bag.store.archived.map(\.id) == ["PR_archived"])
 }
 
-@Test("should auto-unarchive a snoozed PR once the snooze deadline passes")
+@MainActor @Test("should auto-unarchive a snoozed PR once the snooze deadline passes")
 func shouldAutoUnarchive_whenSnoozeElapsed() async {
   let bag = makeStore()
   let pr = makePR(id: "PR_x", number: 1)
@@ -397,7 +400,7 @@ func shouldAutoUnarchive_whenSnoozeElapsed() async {
   #expect(bag.settings.archives.isEmpty)
 }
 
-@Test("should auto-unarchive untilActivity PR when HEAD has advanced")
+@MainActor @Test("should auto-unarchive untilActivity PR when HEAD has advanced")
 func shouldAutoUnarchive_whenActivityAfterUntilActivity() async {
   let bag = makeStore()
   let baseline = fixedNow.addingTimeInterval(-7200)
@@ -417,7 +420,7 @@ func shouldAutoUnarchive_whenActivityAfterUntilActivity() async {
   #expect(bag.settings.archives.isEmpty)
 }
 
-@Test("should prune archive entries for PRs no longer present in the fetch")
+@MainActor @Test("should prune archive entries for PRs no longer present in the fetch")
 func shouldPruneArchiveEntries_whenPRMissing() async {
   let bag = makeStore()
   bag.settings.archives = [
@@ -435,7 +438,7 @@ func shouldPruneArchiveEntries_whenPRMissing() async {
 
 // MARK: - Archive / unarchive actions
 
-@Test("should move a PR from prs to archived and persist the entry")
+@MainActor @Test("should move a PR from prs to archived and persist the entry")
 func shouldArchiveAction_movesAndPersists() async {
   let bag = makeStore()
   let pr = makePR(id: "PR_x", number: 1)
@@ -454,7 +457,7 @@ func shouldArchiveAction_movesAndPersists() async {
   #expect(entry.baselineCommitDate == pr.latestCommitDate)
 }
 
-@Test("should move a PR from archived back to prs and drop the entry")
+@MainActor @Test("should move a PR from archived back to prs and drop the entry")
 func shouldUnarchiveAction_reverses() async {
   let bag = makeStore()
   let pr = makePR(id: "PR_x", number: 1)
@@ -474,7 +477,7 @@ func shouldUnarchiveAction_reverses() async {
   #expect(bag.settings.archives.isEmpty)
 }
 
-@Test("should no-op when archiving a PR ID not currently shown")
+@MainActor @Test("should no-op when archiving a PR ID not currently shown")
 func shouldArchiveAction_noOp_whenIDUnknown() async {
   let bag = makeStore()
   bag.fetcher.result = .success([])
@@ -485,7 +488,7 @@ func shouldArchiveAction_noOp_whenIDUnknown() async {
   #expect(bag.settings.archives.isEmpty)
 }
 
-@Test("should no-op when unarchiving a PR ID not in the archived list")
+@MainActor @Test("should no-op when unarchiving a PR ID not in the archived list")
 func shouldUnarchiveAction_noOp_whenIDUnknown() async {
   let bag = makeStore()
   bag.fetcher.result = .success([])
