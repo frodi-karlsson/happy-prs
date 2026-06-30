@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-15
+    permissions:
+      contents: write  # for `gh release create` against this repo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Show toolchain versions
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Run tests
+        run: swift test
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build release tarball
+        id: build
+        run: |
+          ./release.sh "${{ steps.version.outputs.version }}"
+          TARBALL="release/happy-prs-${{ steps.version.outputs.version }}.tar.gz"
+          SHA256=$(shasum -a 256 "$TARBALL" | awk '{print $1}')
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes "Released by tag push." \
+            "${{ steps.build.outputs.tarball }}"
+
+      - name: Bump cask in homebrew-tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          SHA256="${{ steps.build.outputs.sha256 }}"
+
+          git config --global user.name "happy-prs-release-bot"
+          git config --global user.email "happy-prs-release-bot@users.noreply.github.com"
+
+          tmpdir="$(mktemp -d)"
+          gh repo clone frodi-karlsson/homebrew-tap "$tmpdir"
+          cd "$tmpdir"
+
+          # Replace the two lines the cask cares about.
+          sed -i.bak -E "s/^  version \"[^\"]+\"/  version \"$VERSION\"/" Casks/happy-prs.rb
+          sed -i.bak -E "s/^  sha256 \"[a-f0-9]{64}\"/  sha256 \"$SHA256\"/" Casks/happy-prs.rb
+          rm -f Casks/happy-prs.rb.bak
+
+          if git diff --quiet Casks/happy-prs.rb; then
+            echo "cask already at $VERSION/$SHA256; nothing to push"
+            exit 0
+          fi
+
+          git add Casks/happy-prs.rb
+          git commit -m "chore(happy-prs): bump to v$VERSION"
+          git push

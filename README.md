@@ -20,13 +20,22 @@ Stale-approval detection: catches PRs where my prior approval was dismissed by n
 
 ## Install
 
+### Homebrew (recommended)
+
+```sh
+brew install --cask frodi-karlsson/tap/happy-prs
+open "/Applications/Happy PRs.app"
+```
+
+To have it start automatically on login, right-click the dock icon → **Options → Open at Login**, or add it under **System Settings → General → Login Items**.
+
+### From source (auto-starts on login)
+
 ```sh
 ./install.sh
 ```
 
-This builds in release mode, bundles the binary into `~/Applications/Happy PRs.app`, and registers a LaunchAgent so the app starts on login.
-
-To update after pulling changes, re-run `./install.sh`.
+This builds in release mode, bundles the binary into `~/Applications/Happy PRs.app`, and registers a LaunchAgent so the app starts on login. Re-run after pulling changes to update.
 
 ## Development
 
