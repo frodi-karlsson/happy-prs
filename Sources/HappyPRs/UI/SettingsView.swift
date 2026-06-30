@@ -1,3 +1,4 @@
+import ServiceManagement
 import SwiftUI
 
 public struct SettingsView: View {
@@ -19,6 +20,15 @@ public struct SettingsView: View {
             Text(intervalLabel(interval)).tag(interval)
           }
         }
+      }
+      Section {
+        Toggle("Open at login", isOn: openAtLoginBinding)
+      } header: {
+        Text("Startup")
+      } footer: {
+        Text("Registers Happy PRs as a login item via macOS so it starts when you sign in.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
       Section {
         if settings.hiddenRepos.isEmpty {
@@ -63,7 +73,30 @@ public struct SettingsView: View {
       }
     }
     .formStyle(.grouped)
-    .frame(width: 460, height: 360)
+    .frame(width: 460, height: 400)
+  }
+
+  /// Reads/writes the system's login-item registration for the app's
+  /// main bundle. Re-evaluates the getter on each view rebuild so the
+  /// toggle reflects current status after registration completes.
+  private var openAtLoginBinding: Binding<Bool> {
+    Binding(
+      get: { SMAppService.mainApp.status == .enabled },
+      set: { newValue in
+        do {
+          if newValue {
+            try SMAppService.mainApp.register()
+          } else {
+            try SMAppService.mainApp.unregister()
+          }
+        } catch {
+          FileHandle.standardError.write(
+            Data(
+              "Settings: open-at-login \(newValue ? "register" : "unregister") error: \(error)\n"
+                .utf8))
+        }
+      }
+    )
   }
 
   private func addRepo() {

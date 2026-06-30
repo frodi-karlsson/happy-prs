@@ -36,6 +36,17 @@ struct ScreenshotSettingsView: View {
       }
 
       sectionBox(
+        title: "Startup",
+        footer: "Registers Happy PRs as a login item via macOS so it starts when you sign in."
+      ) {
+        HStack {
+          Text("Open at login")
+          Spacer()
+          toggleSwitch(isOn: true)
+        }
+      }
+
+      sectionBox(
         title: "Hidden repos",
         footer: "PRs in these repos won't appear in any bucket."
       ) {
@@ -86,6 +97,22 @@ struct ScreenshotSettingsView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
       }
+    }
+  }
+
+  /// Static representation of a macOS toggle switch. The native `Toggle`
+  /// renders as a gray placeholder via `ImageRenderer`, so we draw a
+  /// pill + knob ourselves so the screenshot shows the affordance.
+  private func toggleSwitch(isOn: Bool) -> some View {
+    ZStack(alignment: isOn ? .trailing : .leading) {
+      Capsule()
+        .fill(isOn ? Color.green : Color.gray.opacity(0.3))
+        .frame(width: 32, height: 20)
+      Circle()
+        .fill(.white)
+        .frame(width: 16, height: 16)
+        .padding(2)
+        .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
     }
   }
 
