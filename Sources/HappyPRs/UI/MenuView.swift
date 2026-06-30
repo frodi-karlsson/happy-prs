@@ -1,10 +1,14 @@
 import SwiftUI
 
-struct MenuView: View {
+public struct MenuView: View {
   let store: PRStore
   @State private var showArchived = false
 
-  var body: some View {
+  public init(store: PRStore) {
+    self.store = store
+  }
+
+  public var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       ScrollView {
         VStack(alignment: .leading, spacing: 14) {

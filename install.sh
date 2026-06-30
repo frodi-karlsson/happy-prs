@@ -18,7 +18,7 @@ swift build -c release
 echo "==> Bundling into $APP_DIR"
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
-cp ".build/release/$APP_NAME" "$BINARY_PATH"
+cp ".build/release/HappyPRsApp" "$BINARY_PATH"
 cp "Resources/Info.plist.template" "$APP_DIR/Contents/Info.plist"
 
 # Ad-hoc re-sign the bundle so Info.plist is sealed and the codesign

@@ -1,3 +1,4 @@
+import HappyPRs
 import SwiftUI
 
 @main
