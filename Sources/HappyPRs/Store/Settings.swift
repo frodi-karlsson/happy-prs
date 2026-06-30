@@ -1,6 +1,10 @@
 import Foundation
 import Observation
 
+// @unchecked because @Observable exposes mutable stored properties.
+// In practice Settings is only mutated from the main actor (SwiftUI
+// view bindings, PRStore's refresh) and UserDefaults itself is
+// documented as thread-safe for the didSet pass-through writes.
 @Observable
 public final class Settings: SettingsProtocol, @unchecked Sendable {
   @ObservationIgnored private let defaults: UserDefaults

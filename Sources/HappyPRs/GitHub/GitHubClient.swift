@@ -1,6 +1,6 @@
 import Foundation
 
-public final class GitHubClient: GitHubClientProtocol, @unchecked Sendable {
+public final class GitHubClient: GitHubClientProtocol, Sendable {
   private let endpoint = URL(string: "https://api.github.com/graphql")!
   private let session: URLSession
   private let tokenProvider: @Sendable () throws -> String

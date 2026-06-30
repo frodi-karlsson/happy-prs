@@ -1,5 +1,8 @@
 import Foundation
 
+// @unchecked because `UserDefaults` isn't Sendable. The class itself is
+// thread-safe (Apple documents `UserDefaults` reads/writes as such);
+// our `defaults` reference is stored once at init and never mutated.
 public final class TeamResolver: TeamResolverProtocol, @unchecked Sendable {
   private struct CachedTeams: Codable {
     let viewerLogin: String

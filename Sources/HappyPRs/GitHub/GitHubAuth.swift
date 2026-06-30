@@ -6,6 +6,9 @@ public struct ShellResult: Sendable, Equatable {
   public let stderr: String
 }
 
+// @unchecked because `cachedToken` is mutable. The class wraps all
+// reads/writes in `cacheLock` (NSLock), so concurrent access from
+// different actors is safe in practice.
 public final class GitHubAuth: GitHubAuthProtocol, @unchecked Sendable {
   public enum ShellError: Error, Equatable {
     case binaryNotFound

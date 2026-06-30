@@ -1,6 +1,6 @@
 import Foundation
 
-public final class PRFetcher: PRFetcherProtocol, @unchecked Sendable {
+public final class PRFetcher: PRFetcherProtocol, Sendable {
   private let client: GitHubClientProtocol
 
   public init(client: GitHubClientProtocol) {
