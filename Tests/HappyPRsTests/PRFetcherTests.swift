@@ -18,7 +18,7 @@ private func readBodyData(_ req: URLRequest) -> Data {
 }
 
 @Suite(.serialized) struct PRFetcherTests {
-    @Test("should fetch search page then PR details via two GraphQL calls")
+    @Test("should run one search per filter, dedupe IDs, then fetch details")
     func shouldFetchSearchThenDetails() async throws {
         let calls = Counter()
         MockURLProtocol.acquire(); defer { MockURLProtocol.requestHandler = nil; MockURLProtocol.release() }
@@ -41,9 +41,13 @@ private func readBodyData(_ req: URLRequest) -> Data {
                                   tokenProvider: { "t" })
         let fetcher = PRFetcher(client: client)
         let prs = try await fetcher.fetch(teams: [], detailBatchSize: 50)
+        // 3 base search queries (review-requested, mentions, reviewed-by) — each
+        // returns the same 2 IDs from the fixture, deduped to 2 unique IDs — then
+        // 1 detail batch = 4 GraphQL calls. The detail batch returns 1 PR (the
+        // fixture has 1 PR node) so `prs.count == 1`.
         #expect(prs.count == 1)
         #expect(prs[0].number == 42)
-        #expect(calls.value == 2)
+        #expect(calls.value == 4)
     }
 }
 

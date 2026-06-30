@@ -7,23 +7,29 @@ public final class PRFetcher {
         self.client = client
     }
 
-    /// Runs the combined search + per-PR detail fetch. Returns deduped PRs.
+    /// Runs the per-filter searches + per-PR detail fetch. Returns deduped PRs.
+    /// One search query is run per filter (review-requested, mentions,
+    /// reviewed-by, and one per team) because GitHub search doesn't OR
+    /// across qualifiers — see `Queries.buildSearchQueries`.
     public func fetch(teams: [TeamRef], detailBatchSize: Int = 50) async throws -> [PullRequest] {
-        let query = Queries.buildSearchQuery(teams: teams)
-        var ids: [String] = []
-        var cursor: String? = nil
-        repeat {
-            let resp = try await client.graphQL(
-                query: Queries.searchPRs,
-                variables: ["query": query, "cursor": cursor ?? NSNull()]
-            )
-            let page = try ResponseDecoding.decodeSearchPage(resp.data)
-            ids.append(contentsOf: page.ids)
-            cursor = page.hasNextPage ? page.endCursor : nil
-        } while cursor != nil
+        let queries = Queries.buildSearchQueries(teams: teams)
+        var allIds: Set<String> = []
+        for query in queries {
+            var cursor: String? = nil
+            repeat {
+                let resp = try await client.graphQL(
+                    query: Queries.searchPRs,
+                    variables: ["query": query, "cursor": cursor ?? NSNull()]
+                )
+                let page = try ResponseDecoding.decodeSearchPage(resp.data)
+                allIds.formUnion(page.ids)
+                cursor = page.hasNextPage ? page.endCursor : nil
+            } while cursor != nil
+        }
 
         var prs: [PullRequest] = []
-        for chunk in ids.chunks(ofCount: detailBatchSize) {
+        let idList = Array(allIds)
+        for chunk in idList.chunks(ofCount: detailBatchSize) {
             let resp = try await client.graphQL(
                 query: Queries.prDetails,
                 variables: ["ids": Array(chunk)]
