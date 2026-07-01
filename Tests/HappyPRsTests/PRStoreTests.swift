@@ -9,6 +9,10 @@ private let fixedNow = Date(timeIntervalSince1970: 1_700_000_000)
 private let me = "frodi-karlsson"
 private let myTeam = TeamRef(org: "naturalcycles", slug: "tech")
 
+private func anon(_ text: String, at date: Date = fixedNow) -> PRComment {
+  PRComment(authorLogin: "someone", createdAt: date, bodyText: text)
+}
+
 private func makePR(
   id: String = "PR_default",
   number: Int = 1,
@@ -42,9 +46,9 @@ private func makePR(
     everRequestedTeams: everRequestedTeams,
     latestReviews: latestReviews,
     bodyText: bodyText,
-    commentTexts: commentTexts,
-    reviewSummaryTexts: reviewSummaryTexts,
-    reviewThreadCommentTexts: reviewThreadCommentTexts
+    comments: commentTexts.map { anon($0) },
+    reviewSummaries: reviewSummaryTexts.map { anon($0) },
+    reviewThreadComments: reviewThreadCommentTexts.map { anon($0) }
   )
 }
 

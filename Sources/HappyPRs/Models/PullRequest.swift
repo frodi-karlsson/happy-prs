@@ -26,9 +26,13 @@ public struct PullRequest: Sendable, Equatable {
   public let latestReviews: [Review]  // one per author (GH `latestReviews`)
 
   public let bodyText: String
-  public let commentTexts: [String]
-  public let reviewSummaryTexts: [String]
-  public let reviewThreadCommentTexts: [String]
+  /// Top-level issue comments on the PR.
+  public let comments: [PRComment]
+  /// Reviews' free-text summary bodies (not the inline thread comments).
+  public let reviewSummaries: [PRComment]
+  /// Comments inside review discussion threads (inline code comments and
+  /// their replies).
+  public let reviewThreadComments: [PRComment]
 
   public init(
     id: String, repo: String, number: Int, title: String, url: URL,
@@ -37,8 +41,10 @@ public struct PullRequest: Sendable, Equatable {
     currentlyRequestedUsers: [String], currentlyRequestedTeams: [TeamRef],
     everRequestedUsers: [String], everRequestedTeams: [TeamRef],
     latestReviews: [Review],
-    bodyText: String, commentTexts: [String],
-    reviewSummaryTexts: [String], reviewThreadCommentTexts: [String]
+    bodyText: String,
+    comments: [PRComment],
+    reviewSummaries: [PRComment],
+    reviewThreadComments: [PRComment]
   ) {
     self.id = id; self.repo = repo; self.number = number; self.title = title
     self.url = url; self.authorLogin = authorLogin; self.state = state
@@ -48,8 +54,9 @@ public struct PullRequest: Sendable, Equatable {
     self.everRequestedUsers = everRequestedUsers
     self.everRequestedTeams = everRequestedTeams
     self.latestReviews = latestReviews
-    self.bodyText = bodyText; self.commentTexts = commentTexts
-    self.reviewSummaryTexts = reviewSummaryTexts
-    self.reviewThreadCommentTexts = reviewThreadCommentTexts
+    self.bodyText = bodyText
+    self.comments = comments
+    self.reviewSummaries = reviewSummaries
+    self.reviewThreadComments = reviewThreadComments
   }
 }

@@ -6,6 +6,15 @@ import Testing
 private let me = "frodi-karlsson"
 private let myTeams: [TeamRef] = [TeamRef(org: "naturalcycles", slug: "backend")]
 
+/// Convenience: wrap raw text in a PRComment authored by an anonymous
+/// "someone" (i.e. not `me`) at the same fixed date used by defaults.
+/// Tests that don't care about author/time can pass strings.
+private func anon(_ text: String, at date: Date = Date(timeIntervalSince1970: 1_000_000))
+  -> PRComment
+{
+  PRComment(authorLogin: "someone", createdAt: date, bodyText: text)
+}
+
 private func makePR(
   state: PRState = .open,
   isDraft: Bool = false,
@@ -19,7 +28,10 @@ private func makePR(
   bodyText: String = "",
   commentTexts: [String] = [],
   reviewSummaryTexts: [String] = [],
-  reviewThreadCommentTexts: [String] = []
+  reviewThreadCommentTexts: [String] = [],
+  comments: [PRComment] = [],
+  reviewSummaries: [PRComment] = [],
+  reviewThreadComments: [PRComment] = []
 ) -> PullRequest {
   PullRequest(
     id: "PR_x", repo: "org/repo", number: 1,
@@ -31,9 +43,10 @@ private func makePR(
     everRequestedUsers: everRequestedUsers,
     everRequestedTeams: everRequestedTeams,
     latestReviews: latestReviews,
-    bodyText: bodyText, commentTexts: commentTexts,
-    reviewSummaryTexts: reviewSummaryTexts,
-    reviewThreadCommentTexts: reviewThreadCommentTexts
+    bodyText: bodyText,
+    comments: comments + commentTexts.map { anon($0) },
+    reviewSummaries: reviewSummaries + reviewSummaryTexts.map { anon($0) },
+    reviewThreadComments: reviewThreadComments + reviewThreadCommentTexts.map { anon($0) }
   )
 }
 
@@ -243,4 +256,95 @@ func shouldMatchMention_atBoundary() {
   #expect(BucketClassifier.classify(pr: endOfString, me: me, myTeams: myTeams).mentions)
   #expect(BucketClassifier.classify(pr: newline, me: me, myTeams: myTeams).mentions)
   #expect(BucketClassifier.classify(pr: parens, me: me, myTeams: myTeams).mentions)
+}
+
+// MARK: - Awaiting-response detection
+
+/// Convenience for the awaiting-response tests: build a `PRComment` with
+/// an explicit author + timestamp.
+private func comment(by author: String, at date: Date, text: String = "") -> PRComment {
+  PRComment(authorLogin: author, createdAt: date, bodyText: text)
+}
+
+@Test("should classify as needs-approval when someone replied after my comment")
+func shouldClassifyNeedsApproval_whenSomeoneRepliedAfterMyComment() {
+  // I asked a question, they replied — no new commits, no active review
+  // request, no fresh review. The classifier should still surface it so
+  // I can decide whether to approve.
+  let commitDate = Date(timeIntervalSince1970: 1_000_000)
+  let myCommentAt = commitDate.addingTimeInterval(3600)
+  let theirReplyAt = myCommentAt.addingTimeInterval(1800)
+  let pr = makePR(
+    latestCommitDate: commitDate,
+    everRequestedUsers: [me],
+    comments: [
+      comment(by: me, at: myCommentAt, text: "why not X?"),
+      comment(by: "alice", at: theirReplyAt, text: "because Y"),
+    ]
+  )
+  let result = BucketClassifier.classify(pr: pr, me: me, myTeams: myTeams)
+  #expect(result.needsApproval)
+}
+
+@Test("should ignore approval when computing 'my last activity'")
+func shouldIgnoreApproval_whenComputingMyLastActivity() {
+  // I approved. Later someone commented. My approval closes my
+  // involvement — the follow-up comment shouldn't drag the PR back
+  // into my buckets.
+  let commitDate = Date(timeIntervalSince1970: 1_000_000)
+  let myApprovalAt = commitDate.addingTimeInterval(3600)
+  let theirLaterCommentAt = myApprovalAt.addingTimeInterval(1800)
+  let pr = makePR(
+    latestCommitDate: commitDate,
+    everRequestedUsers: [me],
+    latestReviews: [Review(authorLogin: me, state: .approved, submittedAt: myApprovalAt)],
+    comments: [comment(by: "alice", at: theirLaterCommentAt, text: "small nit")]
+  )
+  #expect(BucketClassifier.classify(pr: pr, me: me, myTeams: myTeams).isDropped)
+}
+
+@Test("should classify as wants-approval when I asked and someone else already approved")
+func shouldClassifyWantsApproval_whenAwaitingResponseAndOtherApproved() {
+  // I asked a question, they replied, and another reviewer approved
+  // the current HEAD. Bucket 2 semantics: I could approve now, but
+  // someone else already covered it.
+  let commitDate = Date(timeIntervalSince1970: 1_000_000)
+  let myCommentAt = commitDate.addingTimeInterval(600)
+  let theirReplyAt = myCommentAt.addingTimeInterval(1800)
+  let daveApproval = Review(
+    authorLogin: "dave", state: .approved,
+    submittedAt: commitDate.addingTimeInterval(60))
+  let pr = makePR(
+    latestCommitDate: commitDate,
+    everRequestedUsers: [me],
+    latestReviews: [daveApproval],
+    comments: [
+      comment(by: me, at: myCommentAt, text: "check on X?"),
+      comment(by: "alice", at: theirReplyAt, text: "handled"),
+    ]
+  )
+  let result = BucketClassifier.classify(pr: pr, me: me, myTeams: myTeams)
+  #expect(result.wantsApproval)
+  #expect(!result.needsApproval)
+}
+
+@Test("should drop when I replied last (nobody is waiting on me)")
+func shouldDrop_whenILastResponded() {
+  // I approved (so the never-reviewed-but-was-requested arm doesn't
+  // fire), then a conversation happened where I got the last word.
+  // Nothing is waiting on me.
+  let commitDate = Date(timeIntervalSince1970: 1_000_000)
+  let myApprovalAt = commitDate.addingTimeInterval(300)
+  let theirQuestion = commitDate.addingTimeInterval(600)
+  let myReply = theirQuestion.addingTimeInterval(1800)
+  let pr = makePR(
+    latestCommitDate: commitDate,
+    everRequestedUsers: [me],
+    latestReviews: [Review(authorLogin: me, state: .approved, submittedAt: myApprovalAt)],
+    comments: [
+      comment(by: "alice", at: theirQuestion, text: "any concerns?"),
+      comment(by: me, at: myReply, text: "no, looks good"),
+    ]
+  )
+  #expect(BucketClassifier.classify(pr: pr, me: me, myTeams: myTeams).isDropped)
 }

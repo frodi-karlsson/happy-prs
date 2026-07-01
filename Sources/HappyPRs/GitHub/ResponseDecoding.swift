@@ -93,14 +93,21 @@ public enum ResponseDecoding {
       }
 
       let bodyText = (pr["bodyText"] as? String) ?? ""
-      let commentTexts: [String] = (((pr["comments"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
-        .compactMap { $0["bodyText"] as? String }
-      let reviewSummaryTexts: [String] = (((pr["reviews"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
-        .compactMap { $0["bodyText"] as? String }
-      let threadTexts: [String] = (((pr["reviewThreads"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
-        .flatMap { thread -> [String] in
-          (((thread["comments"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
-            .compactMap { $0["bodyText"] as? String }
+      let comments = decodeComments(
+        (pr["comments"] as? [String: Any])?["nodes"] as? [[String: Any]] ?? [],
+        dateKey: "createdAt"
+      )
+      let reviewSummaries = decodeComments(
+        (pr["reviews"] as? [String: Any])?["nodes"] as? [[String: Any]] ?? [],
+        dateKey: "submittedAt"
+      )
+      let reviewThreadComments: [PRComment] =
+        ((pr["reviewThreads"] as? [String: Any])?["nodes"] as? [[String: Any]] ?? [])
+        .flatMap { thread -> [PRComment] in
+          decodeComments(
+            (thread["comments"] as? [String: Any])?["nodes"] as? [[String: Any]] ?? [],
+            dateKey: "createdAt"
+          )
         }
 
       prs.append(
@@ -113,12 +120,30 @@ public enum ResponseDecoding {
           everRequestedUsers: everUsers,
           everRequestedTeams: everTeams,
           latestReviews: latestReviews,
-          bodyText: bodyText, commentTexts: commentTexts,
-          reviewSummaryTexts: reviewSummaryTexts,
-          reviewThreadCommentTexts: threadTexts
+          bodyText: bodyText,
+          comments: comments,
+          reviewSummaries: reviewSummaries,
+          reviewThreadComments: reviewThreadComments
         ))
     }
     return prs
+  }
+
+  /// Convert an array of GraphQL comment/review nodes into typed
+  /// `PRComment` values. Skips nodes missing any required field
+  /// (author.login, timestamp, bodyText).
+  private static func decodeComments(
+    _ nodes: [[String: Any]],
+    dateKey: String
+  ) -> [PRComment] {
+    nodes.compactMap { node in
+      guard let bodyText = node["bodyText"] as? String,
+        let login = (node["author"] as? [String: Any])?["login"] as? String,
+        let whenStr = node[dateKey] as? String,
+        let when = parseDate(whenStr)
+      else { return nil }
+      return PRComment(authorLogin: login, createdAt: when, bodyText: bodyText)
+    }
   }
 
   public static func decodeViewerAndTeams(_ data: Data) throws -> ViewerAndTeams {

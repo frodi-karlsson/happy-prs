@@ -21,9 +21,9 @@ func shouldConstructPullRequest() {
     everRequestedTeams: [],
     latestReviews: [],
     bodyText: "",
-    commentTexts: [],
-    reviewSummaryTexts: [],
-    reviewThreadCommentTexts: []
+    comments: [],
+    reviewSummaries: [],
+    reviewThreadComments: []
   )
   #expect(pr.number == 42)
   #expect(pr.state == .open)

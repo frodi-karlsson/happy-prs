@@ -161,7 +161,13 @@ enum PreviewData {
     latestReviews: [Review] = [],
     commentTexts: [String] = []
   ) -> PullRequest {
-    PullRequest(
+    // Comments in the preview fixture are all authored by an anonymous
+    // "someone" — the exact author/timestamp doesn't matter for the
+    // screenshot, only that mentions in the body text still render.
+    let comments = commentTexts.map {
+      PRComment(authorLogin: "someone", createdAt: latestCommitDate, bodyText: $0)
+    }
+    return PullRequest(
       id: id, repo: repo, number: number, title: title,
       url: URL(string: "https://github.com/\(repo)/pull/\(number)")!,
       authorLogin: author, state: .open, isDraft: false,
@@ -172,9 +178,9 @@ enum PreviewData {
       everRequestedTeams: [],
       latestReviews: latestReviews,
       bodyText: "",
-      commentTexts: commentTexts,
-      reviewSummaryTexts: [],
-      reviewThreadCommentTexts: []
+      comments: comments,
+      reviewSummaries: [],
+      reviewThreadComments: []
     )
   }
 }

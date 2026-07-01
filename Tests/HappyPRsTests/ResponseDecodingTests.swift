@@ -30,7 +30,8 @@ func shouldDecodePRDetailBatch() throws {
   #expect(pr.state == .open)
   #expect(pr.currentlyRequestedUsers == ["frodi-karlsson"])
   #expect(pr.everRequestedUsers == ["frodi-karlsson"])
-  #expect(pr.commentTexts == ["lgtm @frodi-karlsson?"])
+  #expect(pr.comments.map(\.bodyText) == ["lgtm @frodi-karlsson?"])
+  #expect(pr.comments.map(\.authorLogin) == ["alice"])
 }
 
 @Test("should decode viewer-and-teams payload")

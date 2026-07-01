@@ -20,7 +20,11 @@
         ]},
         "bodyText": "Please review",
         "comments": { "nodes": [
-          { "bodyText": "lgtm @frodi-karlsson?" }
+          {
+            "bodyText": "lgtm @frodi-karlsson?",
+            "author": { "login": "alice" },
+            "createdAt": "2026-06-30T09:30:00Z"
+          }
         ]},
         "reviews": { "nodes": [] },
         "reviewThreads": { "nodes": [] },

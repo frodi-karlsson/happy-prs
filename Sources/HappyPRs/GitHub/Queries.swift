@@ -37,10 +37,18 @@ public enum Queries {
             nodes { commit { committedDate } }
           }
           bodyText
-          comments(last: 50) { nodes { bodyText } }
-          reviews(last: 50) { nodes { bodyText } }
+          comments(last: 50) {
+            nodes { bodyText author { login } createdAt }
+          }
+          reviews(last: 50) {
+            nodes { bodyText author { login } submittedAt }
+          }
           reviewThreads(last: 50) {
-            nodes { comments(last: 20) { nodes { bodyText } } }
+            nodes {
+              comments(last: 20) {
+                nodes { bodyText author { login } createdAt }
+              }
+            }
           }
           timelineItems(last: 100, itemTypes: [REVIEW_REQUESTED_EVENT]) {
             nodes {
