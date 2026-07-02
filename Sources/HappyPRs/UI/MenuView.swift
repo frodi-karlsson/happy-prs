@@ -82,7 +82,9 @@ public struct MenuView: View {
     switch store.refreshState {
     case .idle:
       if let when = store.lastRefreshAt {
-        Text("Updated \(relativeAge(when))").foregroundStyle(.secondary).font(.caption)
+        RelativeAgeText(date: when)
+          .foregroundStyle(.secondary)
+          .font(.caption)
       } else {
         Text("Not refreshed yet").foregroundStyle(.secondary).font(.caption)
       }
@@ -101,11 +103,5 @@ public struct MenuView: View {
       }
       .font(.caption)
     }
-  }
-
-  private func relativeAge(_ date: Date) -> String {
-    let f = RelativeDateTimeFormatter()
-    f.unitsStyle = .abbreviated
-    return f.localizedString(for: date, relativeTo: Date())
   }
 }

@@ -40,7 +40,7 @@ struct PRRowView: View {
         Text(item.pr.authorLogin)
           .font(.caption)
           .foregroundStyle(.secondary)
-        Text(relativeAge(item.pr.latestCommitDate))
+        RelativeAgeText(date: item.pr.latestCommitDate)
           .font(.caption2)
           .foregroundStyle(.secondary)
       }
@@ -82,11 +82,5 @@ struct PRRowView: View {
 
   private func open() {
     NSWorkspace.shared.open(item.pr.url)
-  }
-
-  private func relativeAge(_ date: Date) -> String {
-    let f = RelativeDateTimeFormatter()
-    f.unitsStyle = .abbreviated
-    return f.localizedString(for: date, relativeTo: Date())
   }
 }
